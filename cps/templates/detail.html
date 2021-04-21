@@ -132,7 +132,13 @@
       </p>
       </div>
       {% endif %}
-
+      {% if entry.id %}
+      <div class="ids">
+      <p>
+        <span class="label label-default">{{_('Id')}}: {{entry.id}}</span>
+      </p>
+      </div>
+      {% endif %}
       {% if entry.identifiers|length > 0 %}
       <div class="identifiers">
         <p>

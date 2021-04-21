@@ -12,7 +12,7 @@
   <title>{{instance}}</title>
   <author>
     <name>{{instance}}</name>
-    <uri>https://github.com/janeczku/calibre-web</uri>
+    <uri>https://github.com/luchomarfil/calibre-web</uri>
   </author>
   <entry>
     <title>{{_('Alphabetical Books')}}</title>
