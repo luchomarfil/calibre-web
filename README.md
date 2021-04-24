@@ -90,7 +90,7 @@ Please have a look at our [Contributing Guidelines](https://github.com/janeczku/
 
 
 #Para elaborar todo el circuito
-1) Commit de calibre web
+1) Commit y push de calibre web
 2) Crear la release de calibre-web en Github
 3) Regenerar el tag de docker-calibre-web que es el que chupa calibre-web
 4) Docker push de docker-calibre-web
