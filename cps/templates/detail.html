@@ -125,6 +125,15 @@
         <p>{{_('Book')}} {{entry.series_index}} {{_('of')}} <a href="{{url_for('web.books_list', data='series', sort_param='abc', book_id=entry.series[0].id)}}">{{entry.series[0].name}}</a></p>
       {% endif %}
 
+      {% if entry.id %}
+      <div class="ids modifi">
+      <p>
+        <span class="glyphicon glyphicon-download"></span>
+        <a href="{{url_lmayordomo}}" target="_blank" class="btn btn-xs btn-success" role="button">Solicitar libro {{entry.id}}</a>
+      </p>
+      </div>
+      {% endif %}
+
       {% if entry.languages.__len__() > 0 %}
        <div class="languages">
        <p>
@@ -132,16 +141,7 @@
       </p>
       </div>
       {% endif %}
-      {% if entry.id %}
-      <div class="ids modifi">
-      <p>
-        <span class="label label-default modificacionEncontrable">{{_('Id')}}: {{entry.id}}
-            <a href="{{url_lmayordomo}}" target="_blank" class="btn btn-xs btn-success" role="button">{{entry.id}}</a>
-        </span>
 
-      </p>
-      </div>
-      {% endif %}
       {% if entry.identifiers|length > 0 %}
       <div class="identifiers">
         <p>

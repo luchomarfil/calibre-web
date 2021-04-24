@@ -1717,9 +1717,8 @@ def show_book(book_id):
             if media_format.format.lower() in constants.EXTENSIONS_AUDIO:
                 audioentries.append(media_format.format.lower())
 
-        url_lmayordomo = "https://"+constants.ARTURITO_HOSTNAME+"/public/calibre/cg/" + constants.ARTURITO_CALIBRE_DB_ID + "/" + entries.id;
+        url_lmayordomo = "https://%s/public/calibre/cg/%s/%s" % (constants.ARTURITO_HOSTNAME,constants.ARTURITO_CALIBRE_DB_ID,entries.id);
         return render_title_template('detail.html',
-                                     url_lmayordomo=url_lmayordomo,
                                      entry=entries,
                                      audioentries=audioentries,
                                      cc=cc,
@@ -1730,6 +1729,7 @@ def show_book(book_id):
                                      is_archived=is_archived,
                                      kindle_list=kindle_list,
                                      reader_list=reader_list,
+                                     url_lmayordomo=url_lmayordomo,
                                      page="book")
     else:
         log.debug(u"Error opening eBook. File does not exist or file is not accessible")
