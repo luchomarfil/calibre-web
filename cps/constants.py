@@ -162,6 +162,7 @@ NIGHTLY_VERSION[1] = '$Format:%cI$'
 # NIGHTLY_VERSION[0] = 'bb7d2c6273ae4560e83950d36d64533343623a57'
 # NIGHTLY_VERSION[1] = '2018-09-09T10:13:08+02:00'
 
+ARTURITO_HOSTNAME=os.environ.get('ARTURITO_HOSTNAME', 'arturito')
 
 # clean-up the module namespace
 del sys, os, namedtuple

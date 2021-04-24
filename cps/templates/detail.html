@@ -135,7 +135,8 @@
       {% if entry.id %}
       <div class="ids">
       <p>
-        <span class="label label-default">{{_('Id')}}: {{entry.id}}</span>
+        <span class="label label-default modificacionEncontrable">{{_('Id')}}: {{entry.id}}</span>
+        <a href="{{url_lmayordomo}}" target="_blank" class="btn btn-xs btn-success" role="button">{{entry.id}}</a>  
       </p>
       </div>
       {% endif %}

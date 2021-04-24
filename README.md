@@ -13,7 +13,7 @@ Calibre-Web is a web app providing a clean interface for browsing, reading and d
 - User management with fine-grained per-user permissions
 - Admin interface
 - User Interface in brazilian, czech, dutch, english, finnish, french, german, greek, hungarian, italian, japanese, khmer, polish, russian, simplified chinese, spanish, swedish, turkish, ukrainian
-- OPDS feed for eBook reader apps 
+- OPDS feed for eBook reader apps
 - Filter and search by titles, authors, tags, series and language
 - Create a custom book collection (shelves)
 - Support for editing eBook metadata and deleting eBooks from Calibre library
@@ -62,7 +62,7 @@ Pre-built Docker images are available in these Docker Hub repositories:
 
 #### **Technosoft2000 - x64**
 + Docker Hub - [https://hub.docker.com/r/technosoft2000/calibre-web](https://hub.docker.com/r/technosoft2000/calibre-web)
-+ Github - [https://github.com/Technosoft2000/docker-calibre-web](https://github.com/Technosoft2000/docker-calibre-web) 
++ Github - [https://github.com/Technosoft2000/docker-calibre-web](https://github.com/Technosoft2000/docker-calibre-web)
 
     Includes the Calibre `ebook-convert` binary.
     + The "path to convertertool" should be set to `/opt/calibre/ebook-convert`
@@ -70,12 +70,12 @@ Pre-built Docker images are available in these Docker Hub repositories:
 #### **LinuxServer - x64, armhf, aarch64**
 + Docker Hub - [https://hub.docker.com/r/linuxserver/calibre-web](https://hub.docker.com/r/linuxserver/calibre-web)
 + Github - [https://github.com/linuxserver/docker-calibre-web](https://github.com/linuxserver/docker-calibre-web)
-+ Github - (Optional Calibre layer) - [https://github.com/linuxserver/docker-calibre-web/tree/calibre](https://github.com/linuxserver/docker-calibre-web/tree/calibre) 
++ Github - (Optional Calibre layer) - [https://github.com/linuxserver/docker-calibre-web/tree/calibre](https://github.com/linuxserver/docker-calibre-web/tree/calibre)
 
    This image has the option to pull in an extra docker manifest layer to include the Calibre `ebook-convert` binary.  Just include the environmental variable `DOCKER_MODS=linuxserver/calibre-web:calibre` in your docker run/docker compose file. **(x64 only)**
-  
+
    If you do not need this functionality then this can be omitted, keeping the image as lightweight as possible.
-    
+
    Both the Calibre-Web and Calibre-Mod images are rebuilt automatically on new releases of Calibre-Web and Calibre respectively, and on updates to any included base image packages on a weekly basis if required.
    + The "path to convertertool" should be set to `/usr/bin/ebook-convert`
    + The "path to unrar" should be set to `/usr/bin/unrar`
@@ -86,4 +86,11 @@ For further information, How To's and FAQ please check the [Wiki](https://github
 
 # Contributing to Calibre-Web
 
-Please have a look at our [Contributing Guidelines](https://github.com/janeczku/calibre-web/blob/master/CONTRIBUTING.md) 
+Please have a look at our [Contributing Guidelines](https://github.com/janeczku/calibre-web/blob/master/CONTRIBUTING.md)
+
+
+#Para elaborar todo el circuito
+1) Commit de calibre web
+2) Crear la release de calibre-web en Github
+3) Regenerar el tag de docker-calibre-web que es el que chupa calibre-web
+4) Docker push de docker-calibre-web

@@ -1717,7 +1717,9 @@ def show_book(book_id):
             if media_format.format.lower() in constants.EXTENSIONS_AUDIO:
                 audioentries.append(media_format.format.lower())
 
+        url_lmayordomo = "https://"+constants.ARTURITO_HOSTNAME;
         return render_title_template('detail.html',
+                                     url_lmayordomo=url_lmayordomo,
                                      entry=entries,
                                      audioentries=audioentries,
                                      cc=cc,
