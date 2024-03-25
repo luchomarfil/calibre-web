@@ -6,6 +6,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+.python-version
 env/
 venv/
 eggs/
@@ -22,12 +23,15 @@ vendor/
 # calibre-web
 *.db
 *.log
+cps/cache
 
 .idea/
 *.bak
 *.log.*
+.key
 
 settings.yaml
 gdrive_credentials
 client_secrets.json
 gmail.json
+/.key

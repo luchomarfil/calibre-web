@@ -16,7 +16,6 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function, unicode_literals
 import os
 import json
 import shutil
@@ -33,7 +32,13 @@ try:
     from sqlalchemy.orm import declarative_base
 except ImportError:
     from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.exc import OperationalError, InvalidRequestError
+from sqlalchemy.exc import OperationalError, InvalidRequestError, IntegrityError
+from sqlalchemy.orm.exc import StaleDataError
+
+try:
+    from httplib2 import __version__ as httplib2_version
+except ImportError:
+    httplib2_version = "not installed"
 
 try:
     from apiclient import errors
@@ -47,16 +52,18 @@ try:
     from pydrive2.auth import GoogleAuth
     from pydrive2.drive import GoogleDrive
     from pydrive2.auth import RefreshError
+    from pydrive2.files import ApiRequestError
 except ImportError as err:
     try:
         from pydrive.auth import GoogleAuth
         from pydrive.drive import GoogleDrive
         from pydrive.auth import RefreshError
+        from pydrive.files import ApiRequestError
     except ImportError as err:
         importError = err
         gdrive_support = False
 
-from . import logger, cli, config
+from . import logger, cli_param, config
 from .constants import CONFIG_DIR as _CONFIG_DIR
 
 
@@ -70,7 +77,7 @@ if gdrive_support:
     if not logger.is_debug_enabled():
         logger.get('googleapiclient.discovery').setLevel(logger.logging.ERROR)
 else:
-    log.debug("Cannot import pydrive,httplib2, using gdrive will not work: %s", importError)
+    log.debug("Cannot import pydrive, httplib2, using gdrive will not work: {}".format(importError))
 
 
 class Singleton:
@@ -130,15 +137,16 @@ class Gdrive:
     def __init__(self):
         self.drive = getDrive(gauth=Gauth.Instance().auth)
 
+
 def is_gdrive_ready():
     return os.path.exists(SETTINGS_YAML) and os.path.exists(CREDENTIALS)
 
 
-engine = create_engine('sqlite:///{0}'.format(cli.gdpath), echo=False)
+engine = create_engine('sqlite:///{0}'.format(cli_param.gd_path), echo=False)
 Base = declarative_base()
 
 # Open session for database connection
-Session = sessionmaker()
+Session = sessionmaker(autoflush=False)
 Session.configure(bind=engine)
 session = scoped_session(Session)
 
@@ -165,29 +173,12 @@ class PermissionAdded(Base):
         return str(self.gdrive_id)
 
 
-def migrate():
-    if not engine.dialect.has_table(engine.connect(), "permissions_added"):
-        PermissionAdded.__table__.create(bind = engine)
-    for sql in session.execute("select sql from sqlite_master where type='table'"):
-        if 'CREATE TABLE gdrive_ids' in sql[0]:
-            currUniqueConstraint = 'UNIQUE (gdrive_id)'
-            if currUniqueConstraint in sql[0]:
-                sql=sql[0].replace(currUniqueConstraint, 'UNIQUE (gdrive_id, path)')
-                sql=sql.replace(GdriveId.__tablename__, GdriveId.__tablename__ + '2')
-                session.execute(sql)
-                session.execute("INSERT INTO gdrive_ids2 (id, gdrive_id, path) SELECT id, "
-                                "gdrive_id, path FROM gdrive_ids;")
-                session.commit()
-                session.execute('DROP TABLE %s' % 'gdrive_ids')
-                session.execute('ALTER TABLE gdrive_ids2 RENAME to gdrive_ids')
-            break
-
-if not os.path.exists(cli.gdpath):
+if not os.path.exists(cli_param.gd_path):
     try:
         Base.metadata.create_all(engine)
-    except Exception:
+    except Exception as ex:
+        log.error("Error connect to database: {} - {}".format(cli_param.gd_path, ex))
         raise
-migrate()
 
 
 def getDrive(drive=None, gauth=None):
@@ -201,9 +192,9 @@ def getDrive(drive=None, gauth=None):
             try:
                 gauth.Refresh()
             except RefreshError as e:
-                log.error("Google Drive error: %s", e)
+                log.error("Google Drive error: {}".format(e))
             except Exception as ex:
-                log.debug_or_exception(ex)
+                log.error_or_exception(ex)
         else:
             # Initialize the saved creds
             gauth.Authorize()
@@ -213,7 +204,7 @@ def getDrive(drive=None, gauth=None):
         try:
             drive.auth.Refresh()
         except RefreshError as e:
-            log.error("Google Drive error: %s", e)
+            log.error("Google Drive error: {}".format(e))
     return drive
 
 def listRootFolders():
@@ -221,8 +212,8 @@ def listRootFolders():
         drive = getDrive(Gdrive.Instance().drive)
         folder = "'root' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
         fileList = drive.ListFile({'q': folder}).GetList()
-    except (ServerNotFoundError, ssl.SSLError) as e:
-        log.info("GDrive Error %s" % e)
+    except (ServerNotFoundError, ssl.SSLError, RefreshError) as e:
+        log.info("GDrive Error {}".format(e))
         fileList = []
     return fileList
 
@@ -257,7 +248,11 @@ def getEbooksFolderId(drive=None):
             log.error('Error gDrive, root ID not found')
         gDriveId.path = '/'
         session.merge(gDriveId)
-        session.commit()
+        try:
+            session.commit()
+        except OperationalError as ex:
+            log.error_or_exception('Database error: {}'.format(ex))
+            session.rollback()
         return gDriveId.gdrive_id
 
 
@@ -272,37 +267,47 @@ def getFile(pathId, fileName, drive):
 
 def getFolderId(path, drive):
     # drive = getDrive(drive)
-    currentFolderId = getEbooksFolderId(drive)
-    sqlCheckPath = path if path[-1] == '/' else path + '/'
-    storedPathName = session.query(GdriveId).filter(GdriveId.path == sqlCheckPath).first()
+    currentFolderId = None
+    try:
+        currentFolderId = getEbooksFolderId(drive)
+        sqlCheckPath = path if path[-1] == '/' else path + '/'
+        storedPathName = session.query(GdriveId).filter(GdriveId.path == sqlCheckPath).first()
 
-    if not storedPathName:
-        dbChange = False
-        s = path.split('/')
-        for i, x in enumerate(s):
-            if len(x) > 0:
-                currentPath = "/".join(s[:i+1])
-                if currentPath[-1] != '/':
-                    currentPath = currentPath + '/'
-                storedPathName = session.query(GdriveId).filter(GdriveId.path == currentPath).first()
-                if storedPathName:
-                    currentFolderId = storedPathName.gdrive_id
-                else:
-                    currentFolder = getFolderInFolder(currentFolderId, x, drive)
-                    if currentFolder:
-                        gDriveId = GdriveId()
-                        gDriveId.gdrive_id = currentFolder['id']
-                        gDriveId.path = currentPath
-                        session.merge(gDriveId)
-                        dbChange = True
-                        currentFolderId = currentFolder['id']
+        if not storedPathName:
+            dbChange = False
+            s = path.split('/')
+            for i, x in enumerate(s):
+                if len(x) > 0:
+                    currentPath = "/".join(s[:i+1])
+                    if currentPath[-1] != '/':
+                        currentPath = currentPath + '/'
+                    storedPathName = session.query(GdriveId).filter(GdriveId.path == currentPath).first()
+                    if storedPathName:
+                        currentFolderId = storedPathName.gdrive_id
                     else:
-                        currentFolderId = None
-                        break
-        if dbChange:
-            session.commit()
-    else:
-        currentFolderId = storedPathName.gdrive_id
+                        currentFolder = getFolderInFolder(currentFolderId, x, drive)
+                        if currentFolder:
+                            gDriveId = GdriveId()
+                            gDriveId.gdrive_id = currentFolder['id']
+                            gDriveId.path = currentPath
+                            session.merge(gDriveId)
+                            dbChange = True
+                            currentFolderId = currentFolder['id']
+                        else:
+                            currentFolderId = None
+                            break
+            if dbChange:
+                session.commit()
+        else:
+            currentFolderId = storedPathName.gdrive_id
+    except (OperationalError, IntegrityError, StaleDataError) as ex:
+        log.error_or_exception('Database error: {}'.format(ex))
+        session.rollback()
+    except ApiRequestError as ex:
+        log.error('{} {}'.format(ex.error['message'], path))
+        session.rollback()
+    except RefreshError as ex:
+        log.error(ex)
     return currentFolderId
 
 
@@ -320,7 +325,7 @@ def getFileFromEbooksFolder(path, fileName):
 
 
 def moveGdriveFileRemote(origin_file_id, new_title):
-    origin_file_id['title']= new_title
+    origin_file_id['title'] = new_title
     origin_file_id.Upload()
 
 
@@ -336,17 +341,28 @@ def moveGdriveFolderRemote(origin_file, target_folder):
     children = drive.auth.service.children().list(folderId=previous_parents).execute()
     gFileTargetDir = getFileFromEbooksFolder(None, target_folder)
     if not gFileTargetDir:
-        # Folder is not existing, create, and move folder
         gFileTargetDir = drive.CreateFile(
             {'title': target_folder, 'parents': [{"kind": "drive#fileLink", 'id': getEbooksFolderId()}],
              "mimeType": "application/vnd.google-apps.folder"})
         gFileTargetDir.Upload()
-    # Move the file to the new folder
-    drive.auth.service.files().update(fileId=origin_file['id'],
-                                      addParents=gFileTargetDir['id'],
-                                      removeParents=previous_parents,
-                                      fields='id, parents').execute()
-    # if previous_parents has no childs anymore, delete original fileparent
+        # Move the file to the new folder
+        drive.auth.service.files().update(fileId=origin_file['id'],
+                                          addParents=gFileTargetDir['id'],
+                                          removeParents=previous_parents,
+                                          fields='id, parents').execute()
+
+    elif gFileTargetDir['title'] != target_folder:
+        # Folder is not existing, create, and move folder
+        drive.auth.service.files().patch(fileId=origin_file['id'],
+                                         body={'title': target_folder},
+                                         fields='title').execute()
+    else:
+        # Move the file to the new folder
+        drive.auth.service.files().update(fileId=origin_file['id'],
+                                          addParents=gFileTargetDir['id'],
+                                          removeParents=previous_parents,
+                                          fields='id, parents').execute()
+    # if previous_parents has no children anymore, delete original fileparent
     if len(children['items']) == 1:
         deleteDatabaseEntry(previous_parents)
         drive.auth.service.files().delete(fileId=previous_parents).execute()
@@ -387,30 +403,33 @@ def copyToDrive(drive, uploadFile, createRoot, replaceFiles,
             driveFile.Upload()
 
 
-def uploadFileToEbooksFolder(destFile, f):
+def uploadFileToEbooksFolder(destFile, f, string=False):
     drive = getDrive(Gdrive.Instance().drive)
     parent = getEbooksFolder(drive)
     splitDir = destFile.split('/')
     for i, x in enumerate(splitDir):
         if i == len(splitDir)-1:
-            existingFiles = drive.ListFile({'q': "title = '%s' and '%s' in parents and trashed = false" %
+            existing_Files = drive.ListFile({'q': "title = '%s' and '%s' in parents and trashed = false" %
                                                  (x.replace("'", r"\'"), parent['id'])}).GetList()
-            if len(existingFiles) > 0:
-                driveFile = existingFiles[0]
+            if len(existing_Files) > 0:
+                driveFile = existing_Files[0]
             else:
                 driveFile = drive.CreateFile({'title': x,
                                               'parents': [{"kind": "drive#fileLink", 'id': parent['id']}], })
-            driveFile.SetContentFile(f)
+            if not string:
+                driveFile.SetContentFile(f)
+            else:
+                driveFile.SetContentString(f)
             driveFile.Upload()
         else:
-            existingFolder = drive.ListFile({'q': "title = '%s' and '%s' in parents and trashed = false" %
+            existing_Folder = drive.ListFile({'q': "title = '%s' and '%s' in parents and trashed = false" %
                                                   (x.replace("'", r"\'"), parent['id'])}).GetList()
-            if len(existingFolder) == 0:
+            if len(existing_Folder) == 0:
                 parent = drive.CreateFile({'title': x, 'parents': [{"kind": "drive#fileLink", 'id': parent['id']}],
                     "mimeType": "application/vnd.google-apps.folder"})
                 parent.Upload()
             else:
-                parent = existingFolder[0]
+                parent = existing_Folder[0]
 
 
 def watchChange(drive, channel_id, channel_type, channel_address,
@@ -507,9 +526,10 @@ def deleteDatabaseOnChange():
     try:
         session.query(GdriveId).delete()
         session.commit()
-    except (OperationalError, InvalidRequestError):
+    except (OperationalError, InvalidRequestError) as ex:
         session.rollback()
-        log.info(u"GDrive DB is not Writeable")
+        log.error_or_exception('Database error: {}'.format(ex))
+        session.rollback()
 
 
 def updateGdriveCalibreFromLocal():
@@ -520,20 +540,29 @@ def updateGdriveCalibreFromLocal():
 
 # update gdrive.db on edit of books title
 def updateDatabaseOnEdit(ID,newPath):
-    sqlCheckPath = newPath if newPath[-1] == '/' else newPath + u'/'
+    sqlCheckPath = newPath if newPath[-1] == '/' else newPath + '/'
     storedPathName = session.query(GdriveId).filter(GdriveId.gdrive_id == ID).first()
     if storedPathName:
         storedPathName.path = sqlCheckPath
-        session.commit()
+        try:
+            session.commit()
+        except OperationalError as ex:
+            log.error_or_exception('Database error: {}'.format(ex))
+            session.rollback()
 
 
 # Deletes the hashes in database of deleted book
 def deleteDatabaseEntry(ID):
     session.query(GdriveId).filter(GdriveId.gdrive_id == ID).delete()
-    session.commit()
+    try:
+        session.commit()
+    except OperationalError as ex:
+        log.error_or_exception('Database error: {}'.format(ex))
+        session.rollback()
 
 
 # Gets cover file from gdrive
+# ToDo: Check is this right everyone get read permissions on cover files?
 def get_cover_via_gdrive(cover_path):
     df = getFileFromEbooksFolder(cover_path, 'cover.jpg')
     if df:
@@ -547,7 +576,34 @@ def get_cover_via_gdrive(cover_path):
             permissionAdded = PermissionAdded()
             permissionAdded.gdrive_id = df['id']
             session.add(permissionAdded)
-            session.commit()
+            try:
+                session.commit()
+            except OperationalError as ex:
+                log.error_or_exception('Database error: {}'.format(ex))
+                session.rollback()
+        return df.metadata.get('webContentLink')
+    else:
+        return None
+
+# Gets cover file from gdrive
+def get_metadata_backup_via_gdrive(metadata_path):
+    df = getFileFromEbooksFolder(metadata_path, 'metadata.opf')
+    if df:
+        if not session.query(PermissionAdded).filter(PermissionAdded.gdrive_id == df['id']).first():
+            df.GetPermissions()
+            df.InsertPermission({
+                            'type': 'anyone',
+                            'value': 'anyone',
+                            'role': 'writer',       # ToDo needs write access
+                            'withLink': True})
+            permissionAdded = PermissionAdded()
+            permissionAdded.gdrive_id = df['id']
+            session.add(permissionAdded)
+            try:
+                session.commit()
+            except OperationalError as ex:
+                log.error_or_exception('Database error: {}'.format(ex))
+                session.rollback()
         return df.metadata.get('webContentLink')
     else:
         return None
@@ -568,7 +624,7 @@ def do_gdrive_download(df, headers, convert_encoding=False):
 
     def stream(convert_encoding):
         for byte in s:
-            headers = {"Range": 'bytes=%s-%s' % (byte[0], byte[1])}
+            headers = {"Range": 'bytes={}-{}'.format(byte[0], byte[1])}
             resp, content = df.auth.Get_Http_Object().request(download_url, headers=headers)
             if resp.status == 206:
                 if convert_encoding:
@@ -576,7 +632,7 @@ def do_gdrive_download(df, headers, convert_encoding=False):
                     content = content.decode(result['encoding']).encode('utf-8')
                 yield content
             else:
-                log.warning('An error occurred: %s', resp)
+                log.warning('An error occurred: {}'.format(resp))
                 return
     return Response(stream_with_context(stream(convert_encoding)), headers=headers)
 

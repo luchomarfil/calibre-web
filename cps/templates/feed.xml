@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/terms/" xmlns:dcterms="http://purl.org/dc/terms/">
+  <icon>{{ url_for('static', filename='favicon.ico') }}</icon>
   <id>urn:uuid:2853dacf-ed79-42f5-8e8a-a7bb3d1ae6a2</id>
   <updated>{{ current_time }}</updated>
   <link rel="self"
@@ -30,7 +31,7 @@
     <link rel="search"
       href="{{url_for('opds.feed_osd')}}"
       type="application/opensearchdescription+xml"/>
-  <link type="application/atom+xml" rel="search" title="{{_('Search')}}" href="{{url_for('opds.feed_cc_search')}}/{searchTerms}" />
+  <link type="application/atom+xml" rel="search" title="{{_('Search')}}" href="{{url_for('opds.feed_normal_search')}}/{searchTerms}" />
   <title>{{instance}}</title>
   <author>
     <name>{{instance}}</name>
@@ -40,35 +41,36 @@
   {% if entries and entries[0] %}
   {% for entry in entries %}
   <entry>
-    <title>{{entry.title}}</title>
-    <id>urn:uuid:{{entry.uuid}}</id>
-    <updated>{{entry.atom_timestamp}}</updated>
-    {% if entry.authors.__len__() > 0 %}
+    <title>{{entry.Books.title}}</title>
+    <id>urn:uuid:{{entry.Books.uuid}}</id>
+    <updated>{{entry.Books.atom_timestamp}}</updated>
+    {% for author in entry.Books.authors %}
       <author>
-        <name>{{entry.authors[0].name}}</name>
+        <name>{{author.name}}</name>
       </author>
-    {% endif %}
-    {% if entry.publishers.__len__() > 0 %}
+    {% endfor %}
+    {% if entry.Books.publishers.__len__() > 0 %}
       <publisher>
-        <name>{{entry.publishers[0].name}}</name>
+        <name>{{entry.Books.publishers[0].name}}</name>
       </publisher>
     {% endif %}
-    {% for lang in entry.languages %}
+    <published>{{entry.Books.pubdate.strftime("%Y-%m-%dT%H:%M:%S+00:00")}}</published>
+    {% for lang in entry.Books.languages %}
       <dcterms:language>{{lang.lang_code}}</dcterms:language>
     {% endfor %}
-    {% for tag in entry.tags %}
+    {% for tag in entry.Books.tags %}
     <category scheme="http://www.bisg.org/standards/bisac_subject/index.html"
               term="{{tag.name}}"
               label="{{tag.name}}"/>
     {% endfor %}
-    {% if entry.comments[0] %}<summary>{{entry.comments[0].text|striptags}}</summary>{% endif %}
-    {% if entry.has_cover %}
-    <link type="image/jpeg" href="{{url_for('opds.feed_get_cover', book_id=entry.id)}}" rel="http://opds-spec.org/image"/>
-    <link type="image/jpeg" href="{{url_for('opds.feed_get_cover', book_id=entry.id)}}" rel="http://opds-spec.org/image/thumbnail"/>
+    {% if entry.Books.comments[0] %}<summary>{{entry.Books.comments[0].text|striptags}}</summary>{% endif %}
+    {% if entry.Books.has_cover %}
+    <link type="image/jpeg" href="{{url_for('opds.feed_get_cover', book_id=entry.Books.id)}}" rel="http://opds-spec.org/image"/>
+    <link type="image/jpeg" href="{{url_for('opds.feed_get_cover', book_id=entry.Books.id)}}" rel="http://opds-spec.org/image/thumbnail"/>
     {% endif %}
-    {% for format in entry.data %}
-    <link rel="http://opds-spec.org/acquisition" href="{{ url_for('opds.opds_download_link', book_id=entry.id, book_format=format.format|lower)}}"
-          length="{{format.uncompressed_size}}" mtime="{{entry.atom_timestamp}}" type="{{format.format|lower|mimetype}}"/>
+    {% for format in entry.Books.data %}
+    <link rel="http://opds-spec.org/acquisition" href="{{ url_for('opds.opds_download_link', book_id=entry.Books.id, book_format=format.format|lower)}}"
+          length="{{format.uncompressed_size}}" mtime="{{entry.Books.atom_timestamp}}" type="{{format.format|lower|mimetype}}"/>
     {% endfor %}
   </entry>
   {% endfor %}

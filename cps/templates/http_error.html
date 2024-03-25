@@ -1,11 +1,14 @@
 <!DOCTYPE html>
-<html class="http-error" lang="{{ g.user.locale }}">
+<html class="http-error">
   <head>
     <title>{{ instance }} | HTTP Error ({{ error_code }})</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    {% if g.google_site_verification|length > 0 %}
+      <meta name="google-site-verification" content="{{g.google_site_verification}}">
+    {% endif %}    
 
     <!-- Bootstrap -->
     <link rel="apple-touch-icon" sizes="140x140" href="{{ url_for('static', filename='favicon.ico') }}">
@@ -17,7 +20,7 @@
     {% endif %}
   </head>
   <body>
-  <div class="container-fluid">
+  <div class="container-fluid" style="overflow-y: auto">
   <div class="row">
     <div class="col">
         <h1  class="text-center">{{instance}}</h1>
@@ -27,6 +30,9 @@
   </div>
   <div class="row">
     <div class="col-md-offset-4 text-left">
+        {% if unconfigured %}
+            <div>{{_('Calibre-Web Instance is unconfigured, please contact your administrator')}}</div>
+        {% endif %}
       {% for element in error_stack %}
         <div>{{ element }}</div>
       {% endfor %}
@@ -35,17 +41,19 @@
   {% if issue %}
     <div class="row">
     <div class="col errorlink">Please report this issue with all related information:
-        <a href="https://github.com/janeczku/calibre-web/issues/new?assignees=&labels=&template=bug_report.md&title=">{{_('Create Issue')}}</a>
+        <a href="https://github.com/janeczku/calibre-web/issues/new/choose">{{_('Create Issue')}}</a>
     </div>
       </div>
     {% endif %}
-
-  <div class="row">
-    <div class="col errorlink">
+    <div class="row">
+      <div class="col errorlink">
+      {% if not unconfigured %}
         <a href="{{url_for('web.index')}}" title="{{ _('Return to Home') }}">{{_('Return to Home')}}</a>
+      {% else %}
+        <a href="{{url_for('web.logout')}}" title="{{ _('Logout User') }}">{{ _('Logout User') }}</a>
+      {% endif %}
+      </div>
     </div>
-  </div>
-
   </div>
   </body>
 </html>

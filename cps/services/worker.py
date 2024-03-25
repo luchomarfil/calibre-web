@@ -1,5 +1,21 @@
+# -*- coding: utf-8 -*-
 
-from __future__ import division, print_function, unicode_literals
+#  This file is part of the Calibre-Web (https://github.com/janeczku/calibre-web)
+#    Copyright (C) 2020 pwr
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program. If not, see <http://www.gnu.org/licenses/>.
+
 import threading
 import abc
 import uuid
@@ -21,11 +37,13 @@ STAT_WAITING = 0
 STAT_FAIL = 1
 STAT_STARTED = 2
 STAT_FINISH_SUCCESS = 3
+STAT_ENDED = 4
+STAT_CANCELLED = 5
 
 # Only retain this many tasks in dequeued list
 TASK_CLEANUP_TRIGGER = 20
 
-QueuedTask = namedtuple('QueuedTask', 'num, user, added, task')
+QueuedTask = namedtuple('QueuedTask', 'num, user, added, task, hidden')
 
 
 def _get_main_thread():
@@ -33,7 +51,6 @@ def _get_main_thread():
         if t.__class__.__name__ == '_MainThread':
             return t
     raise Exception("main thread not found?!")
-
 
 
 class ImprovedQueue(queue.Queue):
@@ -45,12 +62,13 @@ class ImprovedQueue(queue.Queue):
         with self.mutex:
             return list(self.queue)
 
-#Class for all worker tasks in the background
+
+# Class for all worker tasks in the background
 class WorkerThread(threading.Thread):
     _instance = None
 
     @classmethod
-    def getInstance(cls):
+    def get_instance(cls):
         if cls._instance is None:
             cls._instance = WorkerThread()
         return cls._instance
@@ -66,14 +84,17 @@ class WorkerThread(threading.Thread):
         self.start()
 
     @classmethod
-    def add(cls, user, task):
-        ins = cls.getInstance()
+    def add(cls, user, task, hidden=False):
+        ins = cls.get_instance()
         ins.num += 1
+        username = user if user is not None else 'System'
+        log.debug("Add Task for user: {} - {}".format(username, task))
         ins.queue.put(QueuedTask(
             num=ins.num,
-            user=user,
+            user=username,
             added=datetime.now(),
             task=task,
+            hidden=hidden
         ))
 
     @property
@@ -94,10 +115,10 @@ class WorkerThread(threading.Thread):
             if delta > TASK_CLEANUP_TRIGGER:
                 ret = alive
             else:
-                # otherwise, lop off the oldest dead tasks until we hit the target trigger
-                ret = sorted(dead, key=lambda x: x.task.end_time)[-TASK_CLEANUP_TRIGGER:] + alive
+                # otherwise, loop off the oldest dead tasks until we hit the target trigger
+                ret = sorted(dead, key=lambda y: y.task.end_time)[-TASK_CLEANUP_TRIGGER:] + alive
 
-            self.dequeued = sorted(ret, key=lambda x: x.num)
+            self.dequeued = sorted(ret, key=lambda y: y.num)
 
     # Main thread loop starting the different tasks
     def run(self):
@@ -124,10 +145,20 @@ class WorkerThread(threading.Thread):
 
             # sometimes tasks (like Upload) don't actually have work to do and are created as already finished
             if item.task.stat is STAT_WAITING:
-                # CalibreTask.start() should wrap all exceptions in it's own error handling
+                # CalibreTask.start() should wrap all exceptions in its own error handling
                 item.task.start(self)
 
+            # remove self_cleanup tasks and hidden "System Tasks" from list
+            if item.task.self_cleanup or item.hidden:
+                self.dequeued.remove(item)
+
             self.queue.task_done()
+
+    def end_task(self, task_id):
+        ins = self.get_instance()
+        for __, __, __, task, __ in ins.tasks:
+            if str(task.id) == str(task_id) and task.is_cancellable:
+                task.stat = STAT_CANCELLED if task.stat == STAT_WAITING else STAT_ENDED
 
 
 class CalibreTask:
@@ -141,15 +172,22 @@ class CalibreTask:
         self.end_time = None
         self.message = message
         self.id = uuid.uuid4()
+        self.self_cleanup = False
+        self._scheduled = False
 
     @abc.abstractmethod
     def run(self, worker_thread):
-        """Provides the caller some human-readable name for this class"""
+        """The main entry-point for this task"""
         raise NotImplementedError
 
     @abc.abstractmethod
     def name(self):
         """Provides the caller some human-readable name for this class"""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def is_cancellable(self):
+        """Does this task gracefully handle being cancelled (STAT_ENDED, STAT_CANCELLED)?"""
         raise NotImplementedError
 
     def start(self, *args):
@@ -161,7 +199,7 @@ class CalibreTask:
             self.run(*args)
         except Exception as ex:
             self._handleError(str(ex))
-            log.debug_or_exception(ex)
+            log.error_or_exception(ex)
 
         self.end_time = datetime.now()
 
@@ -202,12 +240,23 @@ class CalibreTask:
         We have a separate dictating this because there may be certain tasks that want to override this
         """
         # By default, we're good to clean a task if it's "Done"
-        return self.stat in (STAT_FINISH_SUCCESS, STAT_FAIL)
+        return self.stat in (STAT_FINISH_SUCCESS, STAT_FAIL, STAT_ENDED, STAT_CANCELLED)
 
-    @progress.setter
-    def progress(self, x):
-        # todo: throw error if outside of [0,1]
-        self._progress = x
+    @property
+    def self_cleanup(self):
+        return self._self_cleanup
+
+    @self_cleanup.setter
+    def self_cleanup(self, is_self_cleanup):
+        self._self_cleanup = is_self_cleanup
+
+    @property
+    def scheduled(self):
+        return self._scheduled
+
+    @scheduled.setter
+    def scheduled(self, is_scheduled):
+        self._scheduled = is_scheduled
 
     def _handleError(self, error_message):
         self.stat = STAT_FAIL
@@ -217,3 +266,6 @@ class CalibreTask:
     def _handleSuccess(self):
         self.stat = STAT_FINISH_SUCCESS
         self.progress = 1
+
+    def __str__(self):
+        return self.name

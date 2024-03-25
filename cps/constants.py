@@ -16,36 +16,47 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function, unicode_literals
 import sys
 import os
 from collections import namedtuple
+from sqlalchemy import __version__ as sql_version
+
+sqlalchemy_version2 = ([int(x) for x in sql_version.split('.')] >= [2, 0, 0])
+
+# APP_MODE - production, development, or test
+APP_MODE             = os.environ.get('APP_MODE', 'production')
 
 # if installed via pip this variable is set to true (empty file with name .HOMEDIR present)
 HOME_CONFIG = os.path.isfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.HOMEDIR'))
 
-#In executables updater is not available, so variable is set to False there
+# In executables updater is not available, so variable is set to False there
 UPDATER_AVAILABLE = True
 
 # Base dir is parent of current file, necessary if called from different folder
-if sys.version_info < (3, 0):
-    BASE_DIR            = os.path.abspath(os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),os.pardir)).decode('utf-8')
-else:
-    BASE_DIR            = os.path.abspath(os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),os.pardir))
+BASE_DIR            = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
+# if executable file the files should be placed in the parent dir (parallel to the exe file)
+
 STATIC_DIR          = os.path.join(BASE_DIR, 'cps', 'static')
 TEMPLATES_DIR       = os.path.join(BASE_DIR, 'cps', 'templates')
 TRANSLATIONS_DIR    = os.path.join(BASE_DIR, 'cps', 'translations')
 
+# Cache dir - use CACHE_DIR environment variable, otherwise use the default directory: cps/cache
+DEFAULT_CACHE_DIR   = os.path.join(BASE_DIR, 'cps', 'cache')
+CACHE_DIR           = os.environ.get('CACHE_DIR', DEFAULT_CACHE_DIR)
+
 if HOME_CONFIG:
-    home_dir = os.path.join(os.path.expanduser("~"),".calibre-web")
+    home_dir = os.path.join(os.path.expanduser("~"), ".calibre-web")
     if not os.path.exists(home_dir):
         os.makedirs(home_dir)
     CONFIG_DIR = os.environ.get('CALIBRE_DBPATH', home_dir)
 else:
     CONFIG_DIR = os.environ.get('CALIBRE_DBPATH', BASE_DIR)
+    if getattr(sys, 'frozen', False):
+        CONFIG_DIR = os.path.abspath(os.path.join(CONFIG_DIR, os.pardir))
 
+
+DEFAULT_SETTINGS_FILE = "app.db"
+DEFAULT_GDRIVE_FILE = "gdrive.db"
 
 ROLE_USER               = 0 << 0
 ROLE_ADMIN              = 1 << 0
@@ -136,11 +147,19 @@ except ValueError:
 del env_CALIBRE_PORT
 
 
-EXTENSIONS_AUDIO    = {'mp3', 'mp4', 'ogg', 'opus', 'wav', 'flac', 'm4a', 'm4b'}
-EXTENSIONS_CONVERT_FROM  = ['pdf', 'epub', 'mobi', 'azw3', 'docx', 'rtf', 'fb2', 'lit', 'lrf', 'txt', 'htmlz', 'rtf', 'odt','cbz','cbr']
-EXTENSIONS_CONVERT_TO  = ['pdf', 'epub', 'mobi', 'azw3', 'docx', 'rtf', 'fb2', 'lit', 'lrf', 'txt', 'htmlz', 'rtf', 'odt']
-EXTENSIONS_UPLOAD   = {'txt', 'pdf', 'epub', 'kepub', 'mobi', 'azw', 'azw3', 'cbr', 'cbz', 'cbt', 'djvu', 'prc', 'doc', 'docx',
-                       'fb2', 'html', 'rtf', 'lit', 'odt', 'mp3', 'mp4', 'ogg', 'opus', 'wav', 'flac', 'm4a', 'm4b'}
+EXTENSIONS_AUDIO = {'mp3', 'mp4', 'ogg', 'opus', 'wav', 'flac', 'm4a', 'm4b'}
+EXTENSIONS_CONVERT_FROM = ['pdf', 'epub', 'mobi', 'azw3', 'docx', 'rtf', 'fb2', 'lit', 'lrf',
+                           'txt', 'htmlz', 'rtf', 'odt', 'cbz', 'cbr', 'prc']
+EXTENSIONS_CONVERT_TO = ['pdf', 'epub', 'mobi', 'azw3', 'docx', 'rtf', 'fb2',
+                         'lit', 'lrf', 'txt', 'htmlz', 'rtf', 'odt']
+EXTENSIONS_UPLOAD = {'txt', 'pdf', 'epub', 'kepub', 'mobi', 'azw', 'azw3', 'cbr', 'cbz', 'cbt', 'cb7', 'djvu', 'djv',
+                     'prc', 'doc', 'docx', 'fb2', 'html', 'rtf', 'lit', 'odt', 'mp3', 'mp4', 'ogg',
+                     'opus', 'wav', 'flac', 'm4a', 'm4b'}
+
+_extension = ""
+if sys.platform == "win32":
+    _extension = ".exe"
+SUPPORTED_CALIBRE_BINARIES = {binary:binary + _extension for binary in ["ebook-convert", "calibredb"]}
 
 
 def has_flag(value, bit_flag):
@@ -152,18 +171,30 @@ def selected_roles(dictionary):
 
 # :rtype: BookMeta
 BookMeta = namedtuple('BookMeta', 'file_path, extension, title, author, cover, description, tags, series, '
-                                  'series_id, languages, publisher')
+                                  'series_id, languages, publisher, pubdate, identifiers')
 
-STABLE_VERSION = {'version': '0.6.12 Beta'}
+# python build process likes to have x.y.zbw -> b for beta and w a counting number
+STABLE_VERSION = {'version': '0.6.22b'}
 
-NIGHTLY_VERSION = {}
+NIGHTLY_VERSION = dict()
 NIGHTLY_VERSION[0] = '$Format:%H$'
 NIGHTLY_VERSION[1] = '$Format:%cI$'
-# NIGHTLY_VERSION[0] = 'bb7d2c6273ae4560e83950d36d64533343623a57'
-# NIGHTLY_VERSION[1] = '2018-09-09T10:13:08+02:00'
+
+# CACHE
+CACHE_TYPE_THUMBNAILS    = 'thumbnails'
+
+# Thumbnail Types
+THUMBNAIL_TYPE_COVER     = 1
+THUMBNAIL_TYPE_SERIES    = 2
+THUMBNAIL_TYPE_AUTHOR    = 3
 
 ARTURITO_HOSTNAME=os.environ.get('ARTURITO_HOSTNAME', 'arturito')
 ARTURITO_CALIBRE_DB_ID=os.environ.get('ARTURITO_CALIBRE_DB_ID', 'arturito')
+# Thumbnails Sizes
+COVER_THUMBNAIL_ORIGINAL = 0
+COVER_THUMBNAIL_SMALL    = 1
+COVER_THUMBNAIL_MEDIUM   = 2
+COVER_THUMBNAIL_LARGE    = 3
 
 # clean-up the module namespace
 del sys, os, namedtuple

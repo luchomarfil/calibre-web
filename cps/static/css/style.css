@@ -123,6 +123,10 @@ table .bg-dark-danger a { color: #fff; }
   flex-wrap: wrap;
 }
 
+.row-fluid.text-center {
+    margin-top: -20px;
+}
+
 .container-fluid img {
   display: block;
   max-width: 100%;
@@ -136,6 +140,7 @@ table .bg-dark-danger a { color: #fff; }
 
 .container-fluid .book {
   margin-top: 20px;
+  max-width: 180px;
   display: flex;
   flex-direction: column;
 }
@@ -151,11 +156,6 @@ table .bg-dark-danger a { color: #fff; }
   height: 100%;
 }
 
-.container-fluid .book .cover span.img {
-  bottom: 0;
-  height: 100%;
-  position: absolute;
-}
 .author-bio img { margin: 0 1em 1em 0; }
 
 .container-fluid .single .cover img {
@@ -166,12 +166,21 @@ table .bg-dark-danger a { color: #fff; }
   box-shadow: 0 5px 8px -6px #777;
 }
 
-.container-fluid .book .cover span img {
-  position: relative;
-  top: 0;
-  left: 0;
+.datepicker.form-control {
+    position: static;
+}
+
+.container-fluid .book .cover span .img {
+  bottom: 0;
   height: 100%;
+  position: absolute;
+}
+
+.container-fluid .book .cover span img {
   border: 1px solid #fff;
+  position: relative;
+  height: 100%;
+
   box-sizing: border-box;
   -webkit-box-shadow: 0 5px 8px -6px #777;
   -moz-box-shadow: 0 5px 8px -6px #777;
@@ -243,8 +252,10 @@ span.glyphicon.glyphicon-tags {
 }
 
 .cover .read {
-  left: auto;
-  right: 2px;
+  position: relative;
+  top: -20px;
+  /*left: auto;
+  right: 2px;*/
   width: 17px;
   height: 17px;
   display: inline-block;
@@ -322,7 +333,7 @@ table .bg-dark-danger:hover { background-color: #c9302c; }
 table .bg-primary:hover { background-color: #1c5484; }
 .block-label { display: block; }
 
-.fake-input {
+.form-control.fake-input {
   position: absolute;
   pointer-events: none;
   top: 0;
@@ -417,3 +428,13 @@ div.log {
   white-space: nowrap;
   padding: 0.5em;
 }
+
+#detailcover { cursor:zoom-in; }
+#detailcover:-webkit-full-screen { cursor:zoom-out; border: 0; }
+#detailcover:-moz-full-screen { cursor:zoom-out; border: 0; }
+#detailcover:-ms-fullscreen { cursor:zoom-out; border: 0; }
+#detailcover:fullscreen { cursor:zoom-out; border: 0; }
+
+.error-list {
+    margin-top: 5px;
+  }

@@ -1,5 +1,5 @@
 /* This file is part of the Calibre-Web (https://github.com/janeczku/calibre-web)
- *    Copyright (C) 2018 jkrehm
+ *    Copyright (C) 2018-2023 jkrehm, OzzieIsaacs
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,12 +17,68 @@
 
 /* global _ */
 
+function handleResponse (data) {
+    $(".row-fluid.text-center").remove();
+    $("#flash_danger").remove();
+    $("#flash_success").remove();
+    if (!jQuery.isEmptyObject(data)) {
+        if($("#bookDetailsModal").is(":visible")) {
+            data.forEach(function (item) {
+                $(".modal-header").after('<div id="flash_' + item.type +
+                    '" class="text-center alert alert-' + item.type + '">' + item.message + '</div>');
+            });
+        } else {
+            data.forEach(function (item) {
+                $(".navbar").after('<div class="row-fluid text-center">' +
+                    '<div id="flash_' + item.type + '" class="alert alert-' + item.type + '">' + item.message + '</div>' +
+                    '</div>');
+            });
+        }
+    }
+}
+$(".sendbtn-form").click(function() {
+    $.ajax({
+        method: 'post',
+        url: $(this).data('href'),
+        data: {csrf_token: $("input[name='csrf_token']").val()},
+        success: function (data) {
+            handleResponse(data)
+        }
+    })
+});
+
 $(function() {
     $("#have_read_form").ajaxForm();
 });
 
 $("#have_read_cb").on("change", function() {
-    $(this).closest("form").submit();
+    $.ajax({
+        url: this.closest("form").action,
+        method:"post",
+        data: $(this).closest("form").serialize(),
+        error: function(response) {
+            var data = [{type:"danger", message:response.responseText}]
+            // $("#flash_success").parent().remove();
+            $("#flash_danger").remove();
+            $(".row-fluid.text-center").remove();
+            if (!jQuery.isEmptyObject(data)) {
+                $("#have_read_cb").prop("checked", !$("#have_read_cb").prop("checked"));
+                if($("#bookDetailsModal").is(":visible")) {
+                    data.forEach(function (item) {
+                        $(".modal-header").after('<div id="flash_' + item.type +
+                            '" class="text-center alert alert-' + item.type + '">' + item.message + '</div>');
+                    });
+                } else
+                {
+                    data.forEach(function (item) {
+                        $(".navbar").after('<div class="row-fluid text-center" >' +
+                            '<div id="flash_' + item.type + '" class="alert alert-' + item.type + '">' + item.message + '</div>' +
+                            '</div>');
+                    });
+                }
+            }
+        }
+    });
 });
 
 $(function() {
@@ -43,19 +99,22 @@ $("#archived_cb").on("change", function() {
         )
     };
 
-    $("#shelf-actions").on("click", "[data-shelf-action]", function (e) {
+    $("#add-to-shelves, #remove-from-shelves").on("click", "[data-shelf-action]", function (e) {
         e.preventDefault();
-
-        $.get(this.href)
+        $.ajax({
+                url: $(this).data('href'),
+                method:"post",
+                data: {csrf_token:$("input[name='csrf_token']").val()},
+            })
             .done(function() {
                 var $this = $(this);
                 switch ($this.data("shelf-action")) {
                     case "add":
                         $("#remove-from-shelves").append(
                             templates.remove({
-                                add: this.href,
+                                add: $this.data('href'),
                                 remove: $this.data("remove-href"),
-                                content: this.textContent
+                                content: $("<div>").text(this.textContent).html()
                             })
                         );
                         break;
@@ -63,8 +122,8 @@ $("#archived_cb").on("change", function() {
                         $("#add-to-shelves").append(
                             templates.add({
                                 add: $this.data("add-href"),
-                                remove: this.href,
-                                content: this.textContent
+                                remove: $this.data('href'),
+                                content: $("<div>").text(this.textContent).html(),
                             })
                         );
                         break;

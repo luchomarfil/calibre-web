@@ -1,4 +1,21 @@
-from __future__ import print_function
+# -*- coding: utf-8 -*-
+
+#  This file is part of the Calibre-Web (https://github.com/janeczku/calibre-web)
+#    Copyright (C) 2021 OzzieIsaacs
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program. If not, see <http://www.gnu.org/licenses/>.
+
 import os.path
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -8,7 +25,7 @@ from google.oauth2.credentials import Credentials
 from datetime import datetime
 import base64
 from flask_babel import gettext as _
-from ..constants import BASE_DIR
+from ..constants import CONFIG_DIR
 from .. import logger
 
 
@@ -36,11 +53,11 @@ def setup_gmail(token):
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            cred_file = os.path.join(BASE_DIR, 'gmail.json')
+            cred_file = os.path.join(CONFIG_DIR, 'gmail.json')
             if not os.path.exists(cred_file):
                 raise Exception(_("Found no valid gmail.json file with OAuth information"))
             flow = InstalledAppFlow.from_client_secrets_file(
-                os.path.join(BASE_DIR, 'gmail.json'), SCOPES)
+                os.path.join(CONFIG_DIR, 'gmail.json'), SCOPES)
             creds = flow.run_local_server(port=0)
             user_info = get_user_info(creds)
         return {
@@ -61,6 +78,7 @@ def get_user_info(credentials):
     return user_info.get('email', "")
 
 def send_messsage(token, msg):
+    log.debug("Start sending e-mail via Gmail")
     creds = Credentials(
         token=token['token'],
         refresh_token=token['refresh_token'],
@@ -79,3 +97,4 @@ def send_messsage(token, msg):
     body = {'raw': raw}
 
     (service.users().messages().send(userId='me', body=body).execute())
+    log.debug("E-mail send successfully via Gmail")

@@ -6,8 +6,9 @@
 {% block body %}
 <div class="discover">
   <h2>{{title}}</h2>
-  <form role="form" method="POST" autocomplete="off" class="col-md-10 col-lg-6">
-<div class="panel-group">
+<form role="form" method="POST" autocomplete="off" >
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="panel-group" class="col-md-10 col-lg-6">
   <div class="panel panel-default">
     <div class="panel-heading">
       <h4 class="panel-title">
@@ -71,7 +72,6 @@
         </div>
       </div>
     </div>
-  </div>
   <div class="panel panel-default">
     <div class="panel-heading">
       <h4 class="panel-title">
@@ -95,17 +95,21 @@
           <input type="checkbox" name="viewer_role" id="viewer_role" {% if conf.role_viewer() %}checked{% endif %}>
           <label for="viewer_role">{{_('Allow eBook Viewer')}}</label>
         </div>
+      {% if conf.config_uploading %}
         <div class="form-group">
           <input type="checkbox" name="upload_role" id="upload_role" {% if conf.role_upload() %}checked{% endif %}>
           <label for="upload_role">{{_('Allow Uploads')}}</label>
         </div>
+      {% endif %}
         <div class="form-group">
-          <input type="checkbox" name="edit_role" id="edit_role" {% if conf.role_edit() %}checked{% endif %}>
+          <input type="checkbox" name="edit_role" data-control="edit_settings" id="edit_role" {% if conf.role_edit() %}checked{% endif %}>
           <label for="edit_role">{{_('Allow Edit')}}</label>
         </div>
-        <div class="form-group">
-          <input type="checkbox" name="delete_role" id="delete_role" {% if conf.role_delete_books() %}checked{% endif %}>
-          <label for="delete_role">{{_('Allow Delete Books')}}</label>
+        <div data-related="edit_settings">
+          <div class="form-group">
+            <input type="checkbox" name="delete_role" id="delete_role" {% if conf.role_delete_books() %}checked{% endif %}>
+            <label for="delete_role">{{_('Allow Delete Books')}}</label>
+          </div>
         </div>
         <div class="form-group">
           <input type="checkbox" name="passwd_role" id="passwd_role" {% if conf.role_passwd() %}checked{% endif %}>
@@ -114,6 +118,23 @@
         <div class="form-group">
           <input type="checkbox" name="edit_shelf_role" id="edit_shelf_role" {% if conf.role_edit_shelfs() %}checked{% endif %}>
           <label for="edit_shelf_role">{{_('Allow Editing Public Shelves')}}</label>
+        </div>
+        <div class="form-group">
+        <label for="config_default_locale">{{_('Default Language')}}</label>
+            <select name="config_default_locale" id="config_default_locale" class="form-control">
+                {%  for translation in translations %}
+                    <option value="{{translation}}" {% if translation|string == conf.config_default_locale %}selected{% endif %}>{{ translation.display_name|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+          <label for="config_default_language">{{_('Default Visible Language of Books')}}</label>
+            <select name="config_default_language" id="config_default_language" class="form-control">
+                <option value="all" {% if conf.config_default_language == "all" %}selected{% endif %}>{{ _('Show All') }}</option>
+                {%  for language in languages %}
+                <option value="{{ language.lang_code }}" {% if conf.config_default_language == language.lang_code %}selected{% endif %}>{{ language.name }}</option>
+                {% endfor %}
+            </select>
         </div>
       </div>
     </div>
@@ -141,11 +162,14 @@
             <input type="checkbox" name="Show_detail_random" id="Show_detail_random" {% if conf.show_detail_random() %}checked{% endif %}>
             <label for="Show_detail_random">{{_('Show Random Books in Detail View')}}</label>
         </div>
+      {% if not simple %}
         <a href="#" id="get_tags" data-id="0" class="btn btn-default" data-toggle="modal" data-target="#restrictModal">{{_('Add Allowed/Denied Tags')}}</a>
         <a href="#" id="get_column_values" data-id="0" class="btn btn-default" data-toggle="modal" data-target="#restrictModal">{{_('Add Allowed/Denied custom column values')}}</a>
+      {% endif %}
       </div>
     </div>
   </div>
+</div>
     <div class="col-sm-12">
     <button type="submit" name="submit" class="btn btn-default">{{_('Save')}}</button>
     <a href="{{ url_for('admin.admin') }}" class="btn btn-default">{{_('Cancel')}}</a>
@@ -157,13 +181,6 @@
 {{ restrict_modal() }}
 {% endblock %}
 {% block js %}
-<script type="text/javascript">
-        $('.collapse').on('shown.bs.collapse', function(){
-            $(this).parent().find(".glyphicon-plus").removeClass("glyphicon-plus").addClass("glyphicon-minus");
-        }).on('hidden.bs.collapse', function(){
-        $(this).parent().find(".glyphicon-minus").removeClass("glyphicon-minus").addClass("glyphicon-plus");
-        });
-</script>
 <script src="{{ url_for('static', filename='js/libs/bootstrap-table/bootstrap-table.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/libs/bootstrap-table/bootstrap-table-editable.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/libs/bootstrap-table/bootstrap-editable.min.js') }}"></script>

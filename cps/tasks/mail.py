@@ -1,34 +1,40 @@
-from __future__ import division, print_function, unicode_literals
-import sys
+# -*- coding: utf-8 -*-
+
+#  This file is part of the Calibre-Web (https://github.com/janeczku/calibre-web)
+#    Copyright (C) 2020 pwr
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program. If not, see <http://www.gnu.org/licenses/>.
+
 import os
 import smtplib
+import ssl
 import threading
 import socket
 import mimetypes
-import base64
 
-try:
-    from StringIO import StringIO
-    from email.MIMEBase import MIMEBase
-    from email.MIMEMultipart import MIMEMultipart
-    from email.MIMEText import MIMEText
-except ImportError:
-    from io import StringIO
-    from email.mime.base import MIMEBase
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-
-
-
-from email import encoders
-from email.utils import formatdate, make_msgid
+from io import StringIO
+from email.message import EmailMessage
+from email.utils import formatdate, parseaddr
 from email.generator import Generator
+from flask_babel import lazy_gettext as N_
 
 from cps.services.worker import CalibreTask
 from cps.services import gmail
+from cps.embed_helper import do_calibre_export
 from cps import logger, config
-
 from cps import gdriveutils
+import uuid
 
 log = logger.create()
 
@@ -103,49 +109,69 @@ class EmailSSL(EmailBase, smtplib.SMTP_SSL):
 
 
 class TaskEmail(CalibreTask):
-    def __init__(self, subject, filepath, attachment, settings, recipient, taskMessage, text, internal=False):
-        super(TaskEmail, self).__init__(taskMessage)
+    def __init__(self, subject, filepath, attachment, settings, recipient, task_message, text, id=0, internal=False):
+        super(TaskEmail, self).__init__(task_message)
         self.subject = subject
         self.attachment = attachment
         self.settings = settings
         self.filepath = filepath
-        self.recipent = recipient
+        self.recipient = recipient
         self.text = text
         self.asyncSMTP = None
+        self.book_id = id
         self.results = dict()
 
+    # from calibre code:
+    # https://github.com/kovidgoyal/calibre/blob/731ccd92a99868de3e2738f65949f19768d9104c/src/calibre/utils/smtp.py#L60
+    def get_msgid_domain(self):
+        try:
+            # Parse out the address from the From line, and then the domain from that
+            from_email = parseaddr(self.settings["mail_from"])[1]
+            msgid_domain = from_email.partition('@')[2].strip()
+            # This can sometimes sneak through parseaddr if the input is malformed
+            msgid_domain = msgid_domain.rstrip('>').strip()
+        except Exception:
+            msgid_domain = ''
+        return msgid_domain or 'calibre-web.com'
+
     def prepare_message(self):
-        message = MIMEMultipart()
-        message['to'] = self.recipent
-        message['from'] = self.settings["mail_from"]
-        message['subject'] = self.subject
-        message['Message-Id'] = make_msgid('calibre-web')
+        message = EmailMessage()
+        # message = MIMEMultipart()
+        message['From'] = self.settings["mail_from"]
+        message['To'] = self.recipient
+        message['Subject'] = self.subject
         message['Date'] = formatdate(localtime=True)
-        text = self.text
-        msg = MIMEText(text.encode('UTF-8'), 'plain', 'UTF-8')
-        message.attach(msg)
+        message['Message-Id'] = "{}@{}".format(uuid.uuid4(), self.get_msgid_domain())
+        message.set_content(self.text.encode('UTF-8'), "text", "plain")
         if self.attachment:
-            result = self._get_attachment(self.filepath, self.attachment)
-            if result:
-                message.attach(result)
+            data = self._get_attachment(self.filepath, self.attachment)
+            if data:
+                # Set mimetype
+                content_type, encoding = mimetypes.guess_type(self.attachment)
+                if content_type is None or encoding is not None:
+                    content_type = 'application/octet-stream'
+                main_type, sub_type = content_type.split('/', 1)
+                message.add_attachment(data, maintype=main_type, subtype=sub_type, filename=self.attachment)
             else:
-                self._handleError(u"Attachment not found")
+                self._handleError("Attachment not found")
                 return
         return message
 
     def run(self, worker_thread):
-        # create MIME message
-        msg = self.prepare_message()
         try:
+            # create MIME message
+            msg = self.prepare_message()
+            if not msg:
+                return
             if self.settings['mail_server_type'] == 0:
                 self.send_standard_email(msg)
             else:
                 self.send_gmail_email(msg)
         except MemoryError as e:
-            log.debug_or_exception(e)
-            self._handleError(u'MemoryError sending email: {}'.format(str(e)))
+            log.error_or_exception(e, stacklevel=3)
+            self._handleError('MemoryError sending e-mail: {}'.format(str(e)))
         except (smtplib.SMTPException, smtplib.SMTPAuthenticationError) as e:
-            log.debug_or_exception(e)
+            log.error_or_exception(e, stacklevel=3)
             if hasattr(e, "smtp_error"):
                 text = e.smtp_error.decode('utf-8').replace("\n", '. ')
             elif hasattr(e, "message"):
@@ -154,28 +180,24 @@ class TaskEmail(CalibreTask):
                 text = '\n'.join(e.args)
             else:
                 text = ''
-            self._handleError(u'Smtplib Error sending email: {}'.format(text))
-        except socket.error as e:
-            log.debug_or_exception(e)
-            self._handleError(u'Socket Error sending email: {}'.format(e.strerror))
+            self._handleError('Smtplib Error sending e-mail: {}'.format(text))
+        except (socket.error) as e:
+            log.error_or_exception(e, stacklevel=3)
+            self._handleError('Socket Error sending e-mail: {}'.format(e.strerror))
         except Exception as ex:
-            log.debug_or_exception(ex)
-            self._handleError(u'Error sending email: {}'.format(ex))
-
+            log.error_or_exception(ex, stacklevel=3)
+            self._handleError('Error sending e-mail: {}'.format(ex))
 
     def send_standard_email(self, msg):
         use_ssl = int(self.settings.get('mail_use_ssl', 0))
         timeout = 600  # set timeout to 5mins
 
-        # redirect output to logfile on python2 on python3 debugoutput is caught with overwritten
-        # _print_debug function
-        if sys.version_info < (3, 0):
-            org_smtpstderr = smtplib.stderr
-            smtplib.stderr = logger.StderrLogger('worker.smtp')
-
+        # on python3 debugoutput is caught with overwritten _print_debug function
+        log.debug("Start sending e-mail")
         if use_ssl == 2:
+            context = ssl.create_default_context()
             self.asyncSMTP = EmailSSL(self.settings["mail_server"], self.settings["mail_port"],
-                                       timeout=timeout)
+                                       timeout=timeout, context=context)
         else:
             self.asyncSMTP = Email(self.settings["mail_server"], self.settings["mail_port"], timeout=timeout)
 
@@ -183,25 +205,24 @@ class TaskEmail(CalibreTask):
         if logger.is_debug_enabled():
             self.asyncSMTP.set_debuglevel(1)
         if use_ssl == 1:
-            self.asyncSMTP.starttls()
-        if self.settings["mail_password"]:
-            self.asyncSMTP.login(str(self.settings["mail_login"]), str(self.settings["mail_password"]))
+            context = ssl.create_default_context()
+            self.asyncSMTP.starttls(context=context)
+        if self.settings["mail_password_e"]:
+            self.asyncSMTP.login(str(self.settings["mail_login"]), str(self.settings["mail_password_e"]))
 
         # Convert message to something to send
         fp = StringIO()
         gen = Generator(fp, mangle_from_=False)
         gen.flatten(msg)
 
-        self.asyncSMTP.sendmail(self.settings["mail_from"], self.recipent, fp.getvalue())
+        self.asyncSMTP.sendmail(self.settings["mail_from"], self.recipient, fp.getvalue())
         self.asyncSMTP.quit()
         self._handleSuccess()
-
-        if sys.version_info < (3, 0):
-            smtplib.stderr = org_smtpstderr
-
+        log.debug("E-mail send successfully")
 
     def send_gmail_email(self, message):
-        return gmail.send_messsage(self.settings.get('mail_gmail_token', None), message)
+        gmail.send_messsage(self.settings.get('mail_gmail_token', None), message)
+        self._handleSuccess()
 
     @property
     def progress(self):
@@ -217,44 +238,48 @@ class TaskEmail(CalibreTask):
             self.asyncSMTP = None
             self._progress = x
 
-
-    @classmethod
-    def _get_attachment(cls, bookpath, filename):
+    def _get_attachment(self, book_path, filename):
         """Get file as MIMEBase message"""
-        calibre_path = config.config_calibre_dir
+        calibre_path = config.get_book_path()
+        extension = os.path.splitext(filename)[1][1:]
         if config.config_use_google_drive:
-            df = gdriveutils.getFileFromEbooksFolder(bookpath, filename)
+            df = gdriveutils.getFileFromEbooksFolder(book_path, filename)
             if df:
-                datafile = os.path.join(calibre_path, bookpath, filename)
-                if not os.path.exists(os.path.join(calibre_path, bookpath)):
-                    os.makedirs(os.path.join(calibre_path, bookpath))
+                datafile = os.path.join(calibre_path, book_path, filename)
+                if not os.path.exists(os.path.join(calibre_path, book_path)):
+                    os.makedirs(os.path.join(calibre_path, book_path))
                 df.GetContentFile(datafile)
             else:
                 return None
-            file_ = open(datafile, 'rb')
-            data = file_.read()
-            file_.close()
+            if config.config_binariesdir and config.config_embed_metadata:
+                data_path, data_file = do_calibre_export(self.book_id, extension)
+                datafile = os.path.join(data_path, data_file + "." + extension)
+            with open(datafile, 'rb') as file_:
+                data = file_.read()
             os.remove(datafile)
         else:
+            datafile = os.path.join(calibre_path, book_path, filename)
             try:
-                file_ = open(os.path.join(calibre_path, bookpath, filename), 'rb')
-                data = file_.read()
-                file_.close()
+                if config.config_binariesdir and config.config_embed_metadata:
+                    data_path, data_file = do_calibre_export(self.book_id, extension)
+                    datafile = os.path.join(data_path, data_file + "." + extension)
+                with open(datafile, 'rb') as file_:
+                    data = file_.read()
+                if config.config_binariesdir and config.config_embed_metadata:
+                    os.remove(datafile)
             except IOError as e:
-                log.debug_or_exception(e)
-                log.error(u'The requested file could not be read. Maybe wrong permissions?')
+                log.error_or_exception(e, stacklevel=3)
+                log.error('The requested file could not be read. Maybe wrong permissions?')
                 return None
-        # Set mimetype
-        content_type, encoding = mimetypes.guess_type(filename)
-        if content_type is None or encoding is not None:
-            content_type = 'application/octet-stream'
-        main_type, sub_type = content_type.split('/', 1)
-        attachment = MIMEBase(main_type, sub_type)
-        attachment.set_payload(data)
-        encoders.encode_base64(attachment)
-        attachment.add_header('Content-Disposition', 'attachment', filename=filename)
-        return attachment
+        return data
 
     @property
     def name(self):
-        return "Email"
+        return N_("E-mail")
+
+    @property
+    def is_cancellable(self):
+        return False
+
+    def __str__(self):
+        return "E-mail {}, {}".format(self.name, self.subject)

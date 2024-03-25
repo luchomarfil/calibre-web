@@ -26,9 +26,9 @@ The Calibre-Web documentation is hosted in the Github [Wiki](https://github.com/
 
 Do not open up a GitHub issue if the bug is a **security vulnerability** in Calibre-Web. Instead, please write an email to "ozzie.fernandez.isaacs@googlemail.com".
 
-Ensure the ***bug was not already reported** by searching on GitHub under [Issues](https://github.com/janeczku/calibre-web/issues). Please also check if a solution for your problem can be found in the [wiki](https://github.com/janeczku/calibre-web/wiki).
+Ensure the **bug was not already reported** by searching on GitHub under [Issues](https://github.com/janeczku/calibre-web/issues). Please also check if a solution for your problem can be found in the [wiki](https://github.com/janeczku/calibre-web/wiki).
 
-If you're unable to find an **open issue** addressing the problem, open a [new one](https://github.com/janeczku/calibre-web/issues/new?assignees=&labels=&template=bug_report.md&title=). Be sure to include a **title** and **clear description**, as much relevant information as possible, the **issue form** helps you providing the right information. Deleting the form and just pasting the stack trace doesn't speed up fixing the problem. If your issue could be resolved, consider closing the issue.
+If you're unable to find an **open issue** addressing the problem, open a [new one](https://github.com/janeczku/calibre-web/issues/new/choose). Be sure to include a **title** and **clear description**, as much relevant information as possible, the **issue form** helps you providing the right information. Deleting the form and just pasting the stack trace doesn't speed up fixing the problem. If your issue could be resolved, consider closing the issue.
 
 ### **Feature Request**
 
@@ -41,6 +41,6 @@ Open a new GitHub pull request with the patch. Ensure the PR description clearly
 
 In case your code enhances features of Calibre-Web: Create your pull request for the development branch if your enhancement consists of more than some lines of code in a local section of Calibre-Webs code. This makes it easier to test it and check all implication before it's made public.
 
-Please check if your code runs on Python 2.7 (still necessary in 2020) and mainly on python 3. If possible and the feature is related to operating system functions, try to check it on Windows and Linux.
-Calibre-Web is automatically tested on Linux in combination with python 3.7. The code for testing is in a [separate repo](https://github.com/OzzieIsaacs/calibre-web-test) on Github. It uses unit tests and performs real system tests with selenium; it would be great if you could consider also writing some tests.
+Please check if your code runs with python 3, python 2 is no longer supported. If possible and the feature is related to operating system functions, try to check it on Windows and Linux.
+Calibre-Web is automatically tested on Linux in combination with python 3.8. The code for testing is in a [separate repo](https://github.com/OzzieIsaacs/calibre-web-test) on Github. It uses unit tests and performs real system tests with selenium; it would be great if you could consider also writing some tests.
 A static code analysis is done by Codacy, but it's partly broken and doesn't run automatically. You could check your code with ESLint before contributing, a configuration file can be found in the projects root folder.

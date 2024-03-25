@@ -16,10 +16,10 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function, unicode_literals
 import os
 import re
-from flask_babel import gettext as _
+
+from flask_babel import lazy_gettext as N_
 
 from . import config, logger
 from .subproc_wrapper import process_wait
@@ -27,10 +27,9 @@ from .subproc_wrapper import process_wait
 
 log = logger.create()
 
-# _() necessary to make babel aware of string for translation
-_NOT_CONFIGURED = _('not configured')
-_NOT_INSTALLED = _('not installed')
-_EXECUTION_ERROR = _('Execution permissions missing')
+# strings getting translated when used
+_NOT_INSTALLED = N_('not installed')
+_EXECUTION_ERROR = N_('Execution permissions missing')
 
 
 def _get_command_version(path, pattern, argument=None):
@@ -39,9 +38,9 @@ def _get_command_version(path, pattern, argument=None):
         if argument:
             command.append(argument)
         try:
-            for line in process_wait(command):
-                if re.search(pattern, line):
-                    return line
+            match = process_wait(command, pattern=pattern)
+            if isinstance(match, re.Match):
+                return match.string
         except Exception as ex:
             log.warning("%s: %s", path, ex)
             return _EXECUTION_ERROR
@@ -49,14 +48,15 @@ def _get_command_version(path, pattern, argument=None):
 
 
 def get_calibre_version():
-    return _get_command_version(config.config_converterpath, r'ebook-convert.*\(calibre', '--version') \
-           or _NOT_CONFIGURED
+    return _get_command_version(config.config_converterpath, r'ebook-convert.*\(calibre', '--version')
 
 
 def get_unrar_version():
-    return _get_command_version(config.config_rarfile_location, r'UNRAR.*\d') or _NOT_CONFIGURED
+    unrar_version = _get_command_version(config.config_rarfile_location, r'UNRAR.*\d')
+    if unrar_version == "not installed":
+        unrar_version = _get_command_version(config.config_rarfile_location, r'unrar.*\d', '-V')
+    return unrar_version
+
 
 def get_kepubify_version():
-    return _get_command_version(config.config_kepubifypath, r'kepubify\s','--version') or _NOT_CONFIGURED
-
-
+    return _get_command_version(config.config_kepubifypath, r'kepubify\s', '--version')

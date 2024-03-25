@@ -17,6 +17,7 @@
 #  along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import traceback
+
 from flask import render_template
 from werkzeug.exceptions import default_exceptions
 try:
@@ -35,15 +36,18 @@ def error_http(error):
                            error_code="Error {0}".format(error.code),
                            error_name=error.name,
                            issue=False,
+                           unconfigured=not config.db_configured,
                            instance=config.config_calibre_web_title
                            ), error.code
 
 
 def internal_error(error):
     return render_template('http_error.html',
-                           error_code="Internal Server Error",
-                           error_name=str(error),
+                           error_code="500 Internal Server Error",
+                           error_name='The server encountered an internal error and was unable to complete your '
+                                      'request. There is an error in the application.',
                            issue=True,
+                           unconfigured=False,
                            error_stack=traceback.format_exc().split("\n"),
                            instance=config.config_calibre_web_title
                            ), 500

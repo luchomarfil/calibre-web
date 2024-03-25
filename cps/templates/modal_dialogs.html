@@ -12,7 +12,7 @@
           <table class="table table-no-bordered" id="restrict-elements-table" data-id-field="id" data-show-header="false" data-editable-mode="inline">
             <thead>
               <tr>
-                  <th data-field="Element" id="Element" data-editable-type="text" data-editable="true" data-editable-title="{{_('Enter Tag')}}"></th>
+                  <th data-field="Element" id="Element" data-escape="true" data-editable-type="text" data-editable="true" data-editable-title="{{_('Enter Tag')}}"></th>
                   <th data-field="type" id="type" data-visible="true"></th>
                   <th data-field="id" id="id" data-visible="false"></th>
                   <th data-align="right" data-formatter="RestrictionActions"></th>
@@ -37,8 +37,8 @@
   </div>
 </div>
 {% endmacro %}
-{% macro delete_book() %}
-{% if g.user.role_delete_books() %}
+{% macro delete_book(allow) %}
+{% if allow %}
 <div class="modal fade" id="deleteModal" role="dialog" aria-labelledby="metaDeleteLabel">
   <div class="modal-dialog">
     <div class="modal-content">

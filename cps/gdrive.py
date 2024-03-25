@@ -20,12 +20,9 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import division, print_function, unicode_literals
 import os
-import sys
 import hashlib
 import json
-import tempfile
 from uuid import uuid4
 from time import time
 from shutil import move, copyfile
@@ -34,8 +31,9 @@ from flask import Blueprint, flash, request, redirect, url_for, abort
 from flask_babel import gettext as _
 from flask_login import login_required
 
-from . import logger, gdriveutils, config, ub, calibre_db
+from . import logger, gdriveutils, config, ub, calibre_db, csrf
 from .admin import admin_required
+from .file_helper import get_temp_dir
 
 gdrive = Blueprint('gdrive', __name__, url_prefix='/gdrive')
 log = logger.create()
@@ -57,7 +55,7 @@ def authenticate_google_drive():
     try:
         authUrl = gdriveutils.Gauth.Instance().auth.GetAuthUrl()
     except gdriveutils.InvalidConfigError:
-        flash(_(u'Google Drive setup not completed, try to deactivate and activate Google Drive again'),
+        flash(_('Google Drive setup not completed, try to deactivate and activate Google Drive again'),
               category="error")
         return redirect(url_for('web.index'))
     return redirect(authUrl)
@@ -74,7 +72,7 @@ def google_drive_callback():
             f.write(credentials.to_json())
     except (ValueError, AttributeError) as error:
         log.error(error)
-    return redirect(url_for('admin.configuration'))
+    return redirect(url_for('admin.db_configuration'))
 
 
 @gdrive.route("/watch/subscribe")
@@ -93,13 +91,13 @@ def watch_gdrive():
             config.save()
         except HttpError as e:
             reason=json.loads(e.content)['error']['errors'][0]
-            if reason['reason'] == u'push.webhookUrlUnauthorized':
-                flash(_(u'Callback domain is not verified, '
-                        u'please follow steps to verify domain in google developer console'), category="error")
+            if reason['reason'] == 'push.webhookUrlUnauthorized':
+                flash(_('Callback domain is not verified, '
+                        'please follow steps to verify domain in google developer console'), category="error")
             else:
                 flash(reason['message'], category="error")
 
-    return redirect(url_for('admin.configuration'))
+    return redirect(url_for('admin.db_configuration'))
 
 
 @gdrive.route("/watch/revoke")
@@ -111,50 +109,48 @@ def revoke_watch_gdrive():
         try:
             gdriveutils.stopChannel(gdriveutils.Gdrive.Instance().drive, last_watch_response['id'],
                                     last_watch_response['resourceId'])
-        except HttpError:
+        except (HttpError, AttributeError):
             pass
         config.config_google_drive_watch_changes_response = {}
         config.save()
-    return redirect(url_for('admin.configuration'))
+    return redirect(url_for('admin.db_configuration'))
 
+try:
+    @csrf.exempt
+    @gdrive.route("/watch/callback", methods=['GET', 'POST'])
+    def on_received_watch_confirmation():
+        if not config.config_google_drive_watch_changes_response:
+            return ''
+        if request.headers.get('X-Goog-Channel-Token') != gdrive_watch_callback_token \
+                or request.headers.get('X-Goog-Resource-State') != 'change' \
+                or not request.data:
+            return ''
 
-@gdrive.route("/watch/callback", methods=['GET', 'POST'])
-def on_received_watch_confirmation():
-    if not config.config_google_drive_watch_changes_response:
-        return ''
-    if request.headers.get('X-Goog-Channel-Token') != gdrive_watch_callback_token \
-            or request.headers.get('X-Goog-Resource-State') != 'change' \
-            or not request.data:
-        return ''
+        log.debug('%r', request.headers)
+        log.debug('%r', request.data)
+        log.info('Change received from gdrive')
 
-    log.debug('%r', request.headers)
-    log.debug('%r', request.data)
-    log.info('Change received from gdrive')
-
-    try:
-        j = json.loads(request.data)
-        log.info('Getting change details')
-        response = gdriveutils.getChangeById(gdriveutils.Gdrive.Instance().drive, j['id'])
-        log.debug('%r', response)
-        if response:
-            if sys.version_info < (3, 0):
-                dbpath = os.path.join(config.config_calibre_dir, "metadata.db")
-            else:
+        try:
+            j = json.loads(request.data)
+            log.info('Getting change details')
+            response = gdriveutils.getChangeById(gdriveutils.Gdrive.Instance().drive, j['id'])
+            log.debug('%r', response)
+            if response:
                 dbpath = os.path.join(config.config_calibre_dir, "metadata.db").encode()
-            if not response['deleted'] and response['file']['title'] == 'metadata.db' \
-                and response['file']['md5Checksum'] != hashlib.md5(dbpath):  # nosec
-                tmp_dir = os.path.join(tempfile.gettempdir(), 'calibre_web')
-                if not os.path.isdir(tmp_dir):
-                    os.mkdir(tmp_dir)
+                if not response['deleted'] and response['file']['title'] == 'metadata.db' \
+                    and response['file']['md5Checksum'] != hashlib.md5(dbpath):  # nosec
+                    tmp_dir = get_temp_dir()
 
-                log.info('Database file updated')
-                copyfile(dbpath, os.path.join(tmp_dir, "metadata.db_" + str(current_milli_time())))
-                log.info('Backing up existing and downloading updated metadata.db')
-                gdriveutils.downloadFile(None, "metadata.db", os.path.join(tmp_dir, "tmp_metadata.db"))
-                log.info('Setting up new DB')
-                # prevent error on windows, as os.rename does on existing files, also allow cross hdd move
-                move(os.path.join(tmp_dir, "tmp_metadata.db"), dbpath)
-                calibre_db.reconnect_db(config, ub.app_DB_path)
-    except Exception as ex:
-        log.debug_or_exception(ex)
-    return ''
+                    log.info('Database file updated')
+                    copyfile(dbpath, os.path.join(tmp_dir, "metadata.db_" + str(current_milli_time())))
+                    log.info('Backing up existing and downloading updated metadata.db')
+                    gdriveutils.downloadFile(None, "metadata.db", os.path.join(tmp_dir, "tmp_metadata.db"))
+                    log.info('Setting up new DB')
+                    # prevent error on windows, as os.rename does on existing files, also allow cross hdd move
+                    move(os.path.join(tmp_dir, "tmp_metadata.db"), dbpath)
+                    calibre_db.reconnect_db(config, ub.app_DB_path)
+        except Exception as ex:
+            log.error_or_exception(ex)
+        return ''
+except AttributeError:
+    pass

@@ -25,15 +25,11 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 # IN ANY WAY OUT OF THE USE OF THIS SOFTWARE AND DOCUMENTATION, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# http://flask.pocoo.org/snippets/62/
+# https://web.archive.org/web/20120517003641/http://flask.pocoo.org/snippets/62/
 
-from __future__ import division, print_function, unicode_literals
-try:
-    from urllib.parse import urlparse, urljoin
-except ImportError:
-    from urlparse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin
 
-from flask import request, url_for, redirect
+from flask import request, url_for, redirect, current_app
 
 
 def is_safe_url(target):
@@ -42,16 +38,15 @@ def is_safe_url(target):
     return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 
-def get_redirect_target():
-    for target in request.values.get('next'), request.referrer:
-        if not target:
-            continue
-        if is_safe_url(target):
-            return target
+def remove_prefix(text, prefix):
+    if text.startswith(prefix):
+        return text[len(prefix):]
+    return ""
 
 
-def redirect_back(endpoint, **values):
-    target = request.form['next']
-    if not target or not is_safe_url(target):
+def get_redirect_location(next, endpoint, **values):
+    target = next or url_for(endpoint, **values)
+    adapter = current_app.url_map.bind(urlparse(request.host_url).netloc)
+    if not len(adapter.allowed_methods(remove_prefix(target, request.environ.get('HTTP_X_SCRIPT_NAME',"")))):
         target = url_for(endpoint, **values)
-    return redirect(target)
+    return target

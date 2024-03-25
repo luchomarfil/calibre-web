@@ -1,6 +1,37 @@
-# About
+# Short Notice from the maintainer 
 
-Calibre-Web is a web app providing a clean interface for browsing, reading and downloading eBooks using an existing [Calibre](https://calibre-ebook.com) database.
+After 6 years of more or less intensive programming on Calibre-Web, I need a break. 
+The last few months, maintaining Calibre-Web has felt more like work than a hobby. I felt pressured and teased by people to solve "their" problems and merge PRs for "their" Calibre-Web. 
+I have turned off all notifications from Github/Discord and will now concentrate undisturbed on the development of “my” Calibre-Web over the next few weeks/months.  
+I will look into the issues and maybe also the PRs from time to time, but don't expect a quick response from me.
+
+# Calibre-Web
+
+Calibre-Web is a web app that offers a clean and intuitive interface for browsing, reading, and downloading eBooks using a valid [Calibre](https://calibre-ebook.com) database.
+
+[![License](https://img.shields.io/github/license/janeczku/calibre-web?style=flat-square)](https://github.com/janeczku/calibre-web/blob/master/LICENSE)
+![Commit Activity](https://img.shields.io/github/commit-activity/w/janeczku/calibre-web?logo=github&style=flat-square&label=commits)
+[![All Releases](https://img.shields.io/github/downloads/janeczku/calibre-web/total?logo=github&style=flat-square)](https://github.com/janeczku/calibre-web/releases)
+[![PyPI](https://img.shields.io/pypi/v/calibreweb?logo=pypi&logoColor=fff&style=flat-square)](https://pypi.org/project/calibreweb/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/calibreweb?logo=pypi&logoColor=fff&style=flat-square)](https://pypi.org/project/calibreweb/)
+[![Discord](https://img.shields.io/discord/838810113564344381?label=Discord&logo=discord&style=flat-square)](https://discord.gg/h2VsJ2NEfB)
+
+<details>
+<summary><strong>Table of Contents</strong> (click to expand)</summary>
+
+1. [About](#calibre-web)
+2. [Features](#features)
+3. [Installation](#installation)
+   - [Installation via pip (recommended)](#installation-via-pip-recommended)
+   - [Quick start](#quick-start)
+   - [Requirements](#requirements)
+4. [Docker Images](#docker-images)
+5. [Contributor Recognition](#contributor-recognition)
+6. [Contact](#contact)
+7. [Contributing to Calibre-Web](#contributing-to-calibre-web)
+
+</details>
+
 
 *This software is a fork of [library](https://github.com/mutschler/calibreserver) and licensed under the GPL v3 License.*
 
@@ -8,85 +39,90 @@ Calibre-Web is a web app providing a clean interface for browsing, reading and d
 
 ## Features
 
-- Bootstrap 3 HTML5 interface
-- full graphical setup
-- User management with fine-grained per-user permissions
+- Modern and responsive Bootstrap 3 HTML5 interface
+- Full graphical setup
+- Comprehensive user management with fine-grained per-user permissions
 - Admin interface
-- User Interface in brazilian, czech, dutch, english, finnish, french, german, greek, hungarian, italian, japanese, khmer, polish, russian, simplified chinese, spanish, swedish, turkish, ukrainian
+- Multilingual user interface supporting 20+ languages ([supported languages](https://github.com/janeczku/calibre-web/wiki/Translation-Status))
 - OPDS feed for eBook reader apps
-- Filter and search by titles, authors, tags, series and language
-- Create a custom book collection (shelves)
-- Support for editing eBook metadata and deleting eBooks from Calibre library
-- Support for converting eBooks through Calibre binaries
-- Restrict eBook download to logged-in users
-- Support for public user registration
-- Send eBooks to Kindle devices with the click of a button
-- Sync your Kobo devices through Calibre-Web with your Calibre library
-- Support for reading eBooks directly in the browser (.txt, .epub, .pdf, .cbr, .cbt, .cbz, .djvu)
-- Upload new books in many formats, including audio formats (.mp3, .m4a, .m4b)
-- Support for Calibre Custom Columns
-- Ability to hide content based on categories and Custom Column content per user
+- Advanced search and filtering options
+- Custom book collection (shelves) creation
+- eBook metadata editing and deletion support
+- Metadata download from various sources (extensible via plugins)
+- eBook conversion through Calibre binaries
+- eBook download restriction to logged-in users
+- Public user registration support
+- Send eBooks to E-Readers with a single click
+- Sync Kobo devices with your Calibre library
+- In-browser eBook reading support for multiple formats
+- Upload new books in various formats, including audio formats
+- Calibre Custom Columns support
+- Content hiding based on categories and Custom Column content per user
 - Self-update capability
-- "Magic Link" login to make it easy to log on eReaders
-- Login via LDAP, google/github oauth and via proxy authentication
+- "Magic Link" login for easy access on eReaders
+- LDAP, Google/GitHub OAuth, and proxy authentication support
 
-## Quick start
+## Installation
 
-1. Install dependencies by running `pip3 install --target vendor -r requirements.txt` (python3.x). Alternativly set up a python virtual environment.
-2. Execute the command: `python3 cps.py` (or `nohup python3 cps.py` - recommended if you want to exit the terminal window)
-3. Point your browser to `http://localhost:8083` or `http://localhost:8083/opds` for the OPDS catalog
-4. Set `Location of Calibre database` to the path of the folder where your Calibre library (metadata.db) lives, push "submit" button\
-   Optionally a Google Drive can be used to host the calibre library [-> Using Google Drive integration](https://github.com/janeczku/calibre-web/wiki/Configuration#using-google-drive-integration)
-5. Go to Login page
+#### Installation via pip (recommended)
+1. Create a virtual environment for Calibre-Web to avoid conflicts with existing Python dependencies
+2. Install Calibre-Web via pip: `pip install calibreweb` (or `pip3` depending on your OS/distro)
+3. Install optional features via pip as needed, see [this page](https://github.com/janeczku/calibre-web/wiki/Dependencies-in-Calibre-Web-Linux-and-Windows) for details
+4. Start Calibre-Web by typing `cps`
 
-**Default admin login:**\
-*Username:* admin\
-*Password:* admin123
+*Note: Raspberry Pi OS users may encounter issues during installation. If so, please update pip (`./venv/bin/python3 -m pip install --upgrade pip`) and/or install cargo (`sudo apt install cargo`) before retrying the installation.*
 
-**Issues with Ubuntu:**
-Please note that running the above install command can fail on some versions of Ubuntu, saying `"can't combine user with prefix"`. This is a [known bug](https://github.com/pypa/pip/issues/3826) and can be remedied by using the command `pip install --system --target vendor -r requirements.txt` instead.
+Refer to the Wiki for additional installation examples: [manual installation](https://github.com/janeczku/calibre-web/wiki/Manual-installation), [Linux Mint](https://github.com/janeczku/calibre-web/wiki/How-To:-Install-Calibre-Web-in-Linux-Mint-19-or-20), [Cloud Provider](https://github.com/janeczku/calibre-web/wiki/How-To:-Install-Calibre-Web-on-a-Cloud-Provider).
+
+## Quick Start
+
+1. Open your browser and navigate to `http://localhost:8083` or `http://localhost:8083/opds` for the OPDS catalog
+2. Log in with the default admin credentials
+3. If you don't have a Calibre database, you can use [this database](https://github.com/janeczku/calibre-web/raw/master/library/metadata.db) (move it out of the Calibre-Web folder to prevent overwriting during updates)
+4. Set `Location of Calibre database` to the path of the folder containing your Calibre library (metadata.db) and click "Save"
+5. Optionally, use Google Drive to host your Calibre library by following the [Google Drive integration guide](https://github.com/janeczku/calibre-web/wiki/G-Drive-Setup#using-google-drive-integration)
+6. Configure your Calibre-Web instance via the admin page, referring to the [Basic Configuration](https://github.com/janeczku/calibre-web/wiki/Configuration#basic-configuration) and [UI Configuration](https://github.com/janeczku/calibre-web/wiki/Configuration#ui-configuration) guides
+
+#### Default Admin Login:
+- **Username:** admin
+- **Password:** admin123
 
 ## Requirements
 
-python 3.x+
-
-Optionally, to enable on-the-fly conversion from one ebook format to another when using the send-to-kindle feature, or during editing of ebooks metadata:
-
-[Download and install](https://calibre-ebook.com/download) the Calibre desktop program for your platform and enter the folder including program name (normally /opt/calibre/ebook-convert, or C:\Program Files\calibre\ebook-convert.exe) in the field "calibre's converter tool" on the setup page.
-
-[Download](https://github.com/pgaskin/kepubify/releases/latest) Kepubify tool for your platform and place the binary starting with `kepubify` in Linux: `\opt\kepubify` Windows: `C:\Program Files\kepubify`.
+- Python 3.5+
+- [Imagemagick](https://imagemagick.org/script/download.php) for cover extraction from EPUBs (Windows users may need to install [Ghostscript](https://ghostscript.com/releases/gsdnld.html) for PDF cover extraction)
+- Optional: [Calibre desktop program](https://calibre-ebook.com/download) for on-the-fly conversion and metadata editing (set "calibre's converter tool" path on the setup page)
+- Optional: [Kepubify tool](https://github.com/pgaskin/kepubify/releases/latest) for Kobo device support (place the binary in `/opt/kepubify` on Linux or `C:\Program Files\kepubify` on Windows)
 
 ## Docker Images
 
-Pre-built Docker images are available in these Docker Hub repositories:
+Pre-built Docker images are available in the following Docker Hub repositories (maintained by the LinuxServer team):
 
-#### **Technosoft2000 - x64**
-+ Docker Hub - [https://hub.docker.com/r/technosoft2000/calibre-web](https://hub.docker.com/r/technosoft2000/calibre-web)
-+ Github - [https://github.com/Technosoft2000/docker-calibre-web](https://github.com/Technosoft2000/docker-calibre-web)
+#### **LinuxServer - x64, aarch64**
+- [Docker Hub](https://hub.docker.com/r/linuxserver/calibre-web)
+- [GitHub](https://github.com/linuxserver/docker-calibre-web)
+- [GitHub - Optional Calibre layer](https://github.com/linuxserver/docker-mods/tree/universal-calibre)
 
-    Includes the Calibre `ebook-convert` binary.
-    + The "path to convertertool" should be set to `/opt/calibre/ebook-convert`
+  Include the environment variable `DOCKER_MODS=linuxserver/mods:universal-calibre` in your Docker run/compose file to add the Calibre `ebook-convert` binary (x64 only). Omit this variable for a lightweight image.
 
-#### **LinuxServer - x64, armhf, aarch64**
-+ Docker Hub - [https://hub.docker.com/r/linuxserver/calibre-web](https://hub.docker.com/r/linuxserver/calibre-web)
-+ Github - [https://github.com/linuxserver/docker-calibre-web](https://github.com/linuxserver/docker-calibre-web)
-+ Github - (Optional Calibre layer) - [https://github.com/linuxserver/docker-calibre-web/tree/calibre](https://github.com/linuxserver/docker-calibre-web/tree/calibre)
+  Both the Calibre-Web and Calibre-Mod images are automatically rebuilt on new releases and updates.
 
-   This image has the option to pull in an extra docker manifest layer to include the Calibre `ebook-convert` binary.  Just include the environmental variable `DOCKER_MODS=linuxserver/calibre-web:calibre` in your docker run/docker compose file. **(x64 only)**
+  - Set "path to convertertool" to `/usr/bin/ebook-convert`
+  - Set "path to unrar" to `/usr/bin/unrar`
 
-   If you do not need this functionality then this can be omitted, keeping the image as lightweight as possible.
+## Contributor Recognition
 
-   Both the Calibre-Web and Calibre-Mod images are rebuilt automatically on new releases of Calibre-Web and Calibre respectively, and on updates to any included base image packages on a weekly basis if required.
-   + The "path to convertertool" should be set to `/usr/bin/ebook-convert`
-   + The "path to unrar" should be set to `/usr/bin/unrar`
+We would like to thank all the [contributors](https://github.com/janeczku/calibre-web/graphs/contributors) and maintainers of Calibre-Web for their valuable input and dedication to the project. Your contributions are greatly appreciated.
 
-# Wiki
+## Contact
 
-For further information, How To's and FAQ please check the [Wiki](https://github.com/janeczku/calibre-web/wiki)
+Join us on [Discord](https://discord.gg/h2VsJ2NEfB)
 
-# Contributing to Calibre-Web
+For more information, How To's, and FAQs, please visit the [Wiki](https://github.com/janeczku/calibre-web/wiki)
 
-Please have a look at our [Contributing Guidelines](https://github.com/janeczku/calibre-web/blob/master/CONTRIBUTING.md)
+## Contributing to Calibre-Web
+
+Check out our [Contributing Guidelines](https://github.com/janeczku/calibre-web/blob/master/CONTRIBUTING.md)
 
 
 #Para elaborar todo el circuito
