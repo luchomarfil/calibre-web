@@ -1643,12 +1643,8 @@ def show_book(book_id):
                                      entry=entry,
                                      cc=cc,
                                      is_xhr=request.headers.get('X-Requested-With')=='XMLHttpRequest',
-                                     title=entries.title,
-                                     books_shelfs=book_in_shelfs,
-                                     have_read=have_read,
-                                     is_archived=is_archived,
-                                     kindle_list=kindle_list,
-                                     reader_list=reader_list,
+                                     title=entry.title,
+                                     books_shelfs=book_in_shelves,
                                      url_lmayordomo=url_lmayordomo,
                                      page="book")
     else:

@@ -125,6 +125,11 @@ For more information, How To's, and FAQs, please visit the [Wiki](https://github
 Check out our [Contributing Guidelines](https://github.com/janeczku/calibre-web/blob/master/CONTRIBUTING.md)
 
 
+## test local  ---  levantar el venv (ver manual-instalattion)
+./venv/bin/python3 -m pip install -r requirements.txt
+./venv/bin/python3 cps.py
+http://localhost:8083/?data=root&sort_param=stored
+
 #Para elaborar todo el circuito se requiere de este repo y del repo de docker-calibre-web
 * Pasos en este remo /luchomarfil/calibre-web
 *) Commit y push de calibre web
