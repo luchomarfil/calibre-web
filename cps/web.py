@@ -1638,7 +1638,7 @@ def show_book(book_id):
             if media_format.format.lower() in constants.EXTENSIONS_AUDIO:
                 entry.audio_entries.append(media_format.format.lower())
 
-        url_lmayordomo = "https://%s/public/calibre/cg/%s/%s" % (constants.ARTURITO_HOSTNAME,constants.ARTURITO_CALIBRE_DB_ID,entries.id);
+        url_lmayordomo = "https://%s/public/calibre/cg/%s/%s" % (constants.ARTURITO_HOSTNAME,constants.ARTURITO_CALIBRE_DB_ID,book_id);
         return render_title_template('detail.html',
                                      entry=entry,
                                      cc=cc,
