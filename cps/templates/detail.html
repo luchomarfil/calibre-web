@@ -116,48 +116,55 @@
                                 </ul>
                                 <ul class="dropdown-menu" aria-labelledby="listen-in-browser">
 
-                                    {% for format in entry.data %}
-                                        {% if format.format|lower in entry.audio_entries %}
-                                            <li><a target="_blank"
-                                                   href="{{ url_for('web.read_book', book_id=entry.id, book_format=format.format|lower) }}">{{ format.format|lower }}</a>
-                                            </li>
-                                        {% endif %}
-                                    {% endfor %}
-                                </ul>
-                            {% else %}
-                                <a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=entry.audio_entries[0]) }}" id="listenbtn" class="btn btn-primary" role="button"><span class="glyphicon glyphicon-music"></span> {{ _('Listen in Browser') }} - {{ entry.audio_entries[0] }}</a>
-                            {% endif %}
-                        </div>
+              {% for format in entry.data %}
+                  {% if format.format|lower in audioentries %}
+                    <li><a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=format.format|lower) }}">{{format.format|lower }}</a></li>
                     {% endif %}
-                </div>
+              {% endfor %}
+                  </ul>
+                {% else %}
+                  <a target="_blank" href="{{url_for('web.read_book', book_id=entry.id, book_format=audioentries[0])}}" id="listenbtn" class="btn btn-primary" role="button"><span class="glyphicon glyphicon-music"></span> {{_('Listen in Browser')}} - {{audioentries[0]}}</a>
+                {% endif %}
+              </div>
+            {% endif %}
             </div>
-            <h2 id="title">{{ entry.title }}</h2>
-            <p class="author">
-                {% for author in entry.ordered_authors %}
-                    <a href="{{ url_for('web.books_list',  data='author', sort_param='stored', book_id=author.id ) }}">{{ author.name.replace('|',',') }}</a>
-                    {% if not loop.last %}
-                        &amp;
-                    {% endif %}
-                {% endfor %}
-            </p>
-            {% if entry.ratings.__len__() > 0 %}
-                <div class="rating">
-                    <p>
-                        {% for number in range((entry.ratings[0].rating/2)|int(2)) %}
-                            <span class="glyphicon glyphicon-star good"></span>
-                            {% if loop.last and loop.index < 5 %}
-                                {% for numer in range(5 - loop.index) %}
-                                    <span class="glyphicon glyphicon-star-empty"></span>
-                                {% endfor %}
-                            {% endif %}
-                        {% endfor %}
-                    </p>
-                </div>
-            {% endif %}
-            {% if entry.series|length > 0 %}
-                <p>{{ _("Book %(index)s of %(range)s", index=entry.series_index|formatfloat(2), range=(url_for('web.books_list', data='series', sort_param='stored', book_id=entry.series[0].id)|escapedlink(entry.series[0].name))|safe) }}</p>
+        </div>
+        <h2 id="title">{{entry.title}}</h2>
+        <p class="author">
+            {% for author in entry.authors %}
+                <a href="{{url_for('web.books_list',  data='author', sort_param='new', book_id=author.id ) }}">{{author.name.replace('|',',')}}</a>
+                {% if not loop.last %}
+                    &amp;
+                {% endif %}
+            {% endfor %}
+        </p>
+        {% if entry.ratings.__len__() > 0 %}
+            <div class="rating">
+                <p>
+                    {% for number in range((entry.ratings[0].rating/2)|int(2)) %}
+                        <span class="glyphicon glyphicon-star good"></span>
+                        {% if loop.last and loop.index < 5 %}
+                            {% for numer in range(5 - loop.index) %}
+                                <span class="glyphicon glyphicon-star-empty"></span>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                </p>
+            </div>
+        {% endif %}
 
-            {% endif %}
+        {% if entry.series|length > 0 %}
+            <p>{{ _("Book %(index)s of %(range)s", index=entry.series_index|formatfloat(2), range=(url_for('web.books_list', data='series', sort_param='stored', book_id=entry.series[0].id)|escapedlink(entry.series[0].name))|safe) }}</p>
+        {% endif %}
+
+      {% if entry.id %}
+      <div class="ids modifi">
+      <p>
+        <span class="glyphicon glyphicon-download"></span>
+        <a href="{{url_lmayordomo}}" target="_blank" class="btn btn-xs btn-success" role="button">Solicitar libro {{entry.id}}</a>
+      </p>
+      </div>
+      {% endif %}
 
             {% if entry.languages|length > 0 %}
                 <div class="languages">

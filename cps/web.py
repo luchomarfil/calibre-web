@@ -1669,12 +1669,14 @@ def show_book(book_id):
             if media_format.format.lower() in constants.EXTENSIONS_AUDIO:
                 entry.audio_entries.append(media_format.format.lower())
 
+        url_lmayordomo = "https://%s/public/calibre/cg/%s/%s" % (constants.ARTURITO_HOSTNAME,constants.ARTURITO_CALIBRE_DB_ID,book_id);
         return render_title_template('detail.html',
                                      entry=entry,
                                      cc=cc,
-                                     is_xhr=request.headers.get('X-Requested-With') == 'XMLHttpRequest',
+                                     is_xhr=request.headers.get('X-Requested-With')=='XMLHttpRequest',
                                      title=entry.title,
                                      books_shelfs=book_in_shelves,
+                                     url_lmayordomo=url_lmayordomo,
                                      page="book")
     else:
         log.debug("Selected book is unavailable. File does not exist or is not accessible")

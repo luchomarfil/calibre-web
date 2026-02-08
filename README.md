@@ -182,6 +182,56 @@ We welcome suggestions for new features. Please create a new issue in the reposi
 - **Documentation**: Comprehensive documentation is available on the [Calibre-Web wiki](https://github.com/janeczku/calibre-web/wiki).
 - **Community Contributions**: Explore the [community contributions](https://github.com/janeczku/calibre-web/pulls) to see ongoing work and how you can get involved.
 
+## Notas de desarrollo local (luchomarfil)
+
+### Test local (levantar el venv)
+./venv/bin/python3 -m pip install -r requirements.txt
+./venv/bin/python3 cps.py
+http://localhost:8083/?data=root&sort_param=stored
+
+### Configuracion del circuito entre calibre-web y docker-calibre-web
+
+Para establecer el circuito completo, se necesita trabajar tanto en el repositorio `calibre-web`
+como en el repositorio `docker-calibre-web`.
+
+#### Pasos en el repositorio `luchomarfil/calibre-web`
+1. **Commit y push de Calibre-Web**
+   - Realiza los cambios necesarios en el codigo de Calibre-Web.
+   - Ejecuta los siguientes comandos:
+     ```bash
+     git add .
+     git commit -m "Descripcion del commit"
+     git push origin tu_rama
+     ```
+
+2. **Crear la release de Calibre-Web en GitHub**
+   - Crea una nueva release en GitHub con la version correspondiente.
+
+3. **Regenerar el tag en docker-calibre-web**
+   - En el repositorio `docker-calibre-web`:
+     ```bash
+     git tag -a "20240401" -m "20240401"
+     git push origin "20240401"
+     ```
+
+#### Pasos en el repositorio `docker-calibre-web`
+1. **(Opcional) Mergear el fork externo con la nueva version**
+
+2. **Docker build de la version**
+   - Con el tag creado, dirijete al repositorio `docker-calibre-web` y ejecuta:
+     ```bash
+     docker build -t luchomarfil/soft:docker-calibre-web-20240401 .
+     ```
+
+3. **Probar la imagen**
+   - Antes de continuar, asegurate de probar la imagen localmente para verificar su funcionamiento.
+
+4. **Docker push de docker-calibre-web**
+   - Finalmente, realiza el push de la imagen Docker al registro correspondiente:
+     ```bash
+     docker push luchomarfil/soft:docker-calibre-web-20240401
+     ```
+
 ---
 
 Thank you for using Calibre-Web! We hope you enjoy managing your eBook library with our tool.
