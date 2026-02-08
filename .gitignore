@@ -9,6 +9,7 @@ __pycache__/
 .python-version
 env/
 venv/
+venv312
 eggs/
 dist/
 executable/
@@ -35,3 +36,4 @@ gdrive_credentials
 client_secrets.json
 gmail.json
 /.key
+.history
